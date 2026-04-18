@@ -182,6 +182,21 @@
         }
         /* ==================================================== */
 
+        /* ============== 确保公式图片与汉字完美对齐 ============== */
+        .print-canvas mjx-container img {
+            display: inline-block;
+            /* 保证在 iOS 下的高清缩放不会变得模糊 */
+            image-rendering: -webkit-optimize-contrast;
+            /* 抵消图片默认的下边距干扰 */
+            margin-bottom: 0 !important;
+            padding: 0 !important;
+        }
+        /* 行内公式特殊处理：稍微下沉一点点以贴合汉字的视觉底线 */
+        .print-canvas mjx-container[display="false"] img {
+            position: relative;
+        }
+        /* ==================================================== */
+
         #preview-result img {
             max-width: 100%;
             height: auto;
@@ -372,44 +387,56 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
             }
 
             // ================= 核心修复：将 SVG 强制转为普通 IMG =================
-            // 解决 iOS Safari WebKit 渲染复杂 SVG 路径丢失符号的致命 Bug
             const svgs = canvasDiv.querySelectorAll('svg');
+            
+            // 【新增】：用于解决 iOS 下 ex 单位丢失导致公式缩小的转换函数
+            const fixUnit = (valStr) => {
+                if (!valStr) return '';
+                // 强制将 ex 转换为 em (1ex 约等于 0.5em)
+                if (valStr.includes('ex')) {
+                    return (parseFloat(valStr) * 0.5) + 'em';
+                }
+                return valStr;
+            };
+
             for (let i = 0; i < svgs.length; i++) {
                 const svg = svgs[i];
                 
-                // 确保具有标准命名空间 (Safari 严格要求)
                 if (!svg.getAttribute('xmlns')) {
                     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
                 }
                 
-                // MathJax SVG 默认用 currentColor，转图片后会丢失 CSS 上下文变成透明/不可见
-                // 必须强制指定为黑色（对应打印文本的颜色）
                 svg.setAttribute('fill', '#000000');
                 svg.style.color = '#000000';
 
-                // 提取高度和垂直对齐，保证公式（如分式、下标）与文字在同一水平线上不乱跳
+                // 获取原始的 ex 属性
                 const width = svg.getAttribute('width');
                 const height = svg.getAttribute('height');
                 const verticalAlign = svg.style.verticalAlign || '';
 
-                // 将 SVG 序列化为字符串并转 Base64
                 const svgData = new XMLSerializer().serializeToString(svg);
                 const base64 = btoa(unescape(encodeURIComponent(svgData)));
 
-                // 创建普通图片节点替代 SVG
                 const img = document.createElement('img');
                 img.src = 'data:image/svg+xml;base64,' + base64;
-                img.style.width = width;
-                img.style.height = height;
-                if (verticalAlign) img.style.verticalAlign = verticalAlign;
                 
-                // 替换原来的 SVG
+                // 【修改】：应用转换后的 em 单位，彻底解决 iOS 下字号缩小和错位
+                img.style.width = fixUnit(width);
+                img.style.height = fixUnit(height);
+                if (verticalAlign) {
+                    img.style.verticalAlign = fixUnit(verticalAlign);
+                }
+                
+                // 为了防止 iOS 图片渲染拉伸，锁定图片自身的属性
+                img.setAttribute('width', fixUnit(width));
+                img.setAttribute('height', fixUnit(height));
+
                 svg.replaceWith(img);
             }
+            // =====================================================================
 
             // 给予浏览器 150ms 时间来解码刚才生成的 Base64 图片
             await new Promise(r => setTimeout(r, 150));
-            // =====================================================================
 
             // 【新增】：在截图前，暴力遍历并移除所有可能导致重影的隐藏节点
             const hiddenNodes = canvasDiv.querySelectorAll('mjx-assistive-mml, .mjx-assistive-mml');
@@ -462,26 +489,4 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
                 const blob = await res.blob();
                 const file = new File([blob], 'AI_Chat_Export.png', { type: 'image/png' });
 
-                await navigator.share({
-                    title: 'AI 对话长图',
-                    files: [file]
-                });
-                return; // 如果唤起原生分享面板成功，就不执行下面的桌面端下载逻辑了
-            } catch (err) {
-                console.log("用户取消分享或分享失败:", err);
-            }
-        }
-
-        // 桌面端传统的下载逻辑
-        const a = document.createElement('a');
-        a.href = finalImageUrl;
-        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        a.download = `AI_Chat_Export_${dateStr}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    }
-</script>
-
-</body>
-</html>
+                await navigator.share(
