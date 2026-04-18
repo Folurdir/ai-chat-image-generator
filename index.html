@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 对话长图生成器 α1.10(6418.2128)</title>
+    <title>AIG α1.1</title>
 
     <!-- 引入外部依赖库 CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
@@ -62,10 +62,11 @@
             border-radius: 12px;
             padding: 20px;
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
         }
 
         h2 { margin-top: 0; font-size: 1.2rem; color: #111; display: flex; justify-content: space-between; align-items: center;}
-        .version { font-size: 0.8rem; color: #6b7280; font-weight: normal; }
 
         textarea {
             width: 100%;
@@ -105,10 +106,33 @@
             transition: opacity 0.2s;
             flex: 1;
             min-width: 120px;
+            padding: 12px;
         }
 
         button:hover { opacity: 0.9; }
         button:disabled { background: #9ca3af; cursor: not-allowed; }
+
+        /* 新增：关于模块样式 */
+        .about-section {
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px dashed var(--border-color);
+            font-size: 13px;
+            color: #6b7280;
+            line-height: 1.8;
+        }
+        .about-section p { margin: 2px 0; }
+        .about-section strong { color: #374151; font-weight: 600; }
+        .tag-local {
+            display: inline-block;
+            background: #dcfce7;
+            color: #166534;
+            padding: 1px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 6px;
+            font-weight: bold;
+        }
 
         #render-wrapper {
             position: absolute;
@@ -134,50 +158,35 @@
            【iOS Safari 专项修复】代码块渲染样式
            ========================================== */
 
-        /* 1. 行内代码块（浅灰底色） */
         .print-canvas code { 
             background: #f0f0f0; 
-            /* 稍微调整 padding，使用 em 防止 iOS 像素计算误差 */
             padding: 0.2em 0.4em; 
             border-radius: 4px; 
-            /* 【关键1】首位必须引入苹果原生等宽字体 Menlo，解决 iOS 字体尺寸测算失败 */
             font-family: Menlo, Monaco, Consolas, 'Courier New', monospace; 
             font-size: 0.85em; 
-            
-            /* 【关键2】彻底解决 iOS 背景块拉长/错位 Bug */
-            /* 将 inline 改为 inline-block，强迫 Safari 将其作为一个不可分割的物理矩形交给 html2canvas */
             display: inline-block; 
-            max-width: 100%; /* 防止遇到极长的死链撑爆页面 */
-            vertical-align: bottom; /* 修正 inline-block 引起的轻微上下浮动 */
-            
-            /* 温和的换行策略 */
+            max-width: 100%;
+            vertical-align: bottom; 
             white-space: pre-wrap; 
             word-break: break-word; 
             overflow-wrap: break-word;
         }
 
-        /* 2. 多行代码块外层容器（深黑底色） */
         .print-canvas pre { 
             background: #1e1e1e; 
             padding: 16px; 
             border-radius: 8px; 
-            
-            /* 【关键3】iOS 硬件加速隔离 */
-            /* 防止 Safari 离屏 Canvas 截图时，深色背景框与内部白色文字发生层级交错或被裁切 */
             -webkit-transform: translateZ(0);
             transform: translateZ(0);
-
             white-space: pre-wrap; 
             word-break: normal; 
             overflow-wrap: break-word; 
         }
 
-        /* 3. 多行代码块内层文字 */
         .print-canvas pre code { 
             background: transparent; 
             padding: 0; 
             color: #fff; 
-            /* 【关键4】必须在这里将 inline-block 覆盖回 block，否则多行代码块会缩成一团 */
             display: block; 
             max-width: none;
             white-space: pre-wrap; 
@@ -208,7 +217,6 @@
             margin: 1em 0 !important;
             padding: 5px 0;
         }
-        /* 强制隐藏辅助层 */
         mjx-assistive-mml, .mjx-assistive-mml, [data-mathml] {
             display: none !important;
             opacity: 0 !important;
@@ -218,16 +226,11 @@
             clip: rect(0, 0, 0, 0) !important;
         }
 
-        /* 
-           【修正 Issue 3/4】: 移除原来的 relative 和 margin 乱改，
-           直接继承 MathJax 原生给出的严格 vertical-align
-        */
         .print-canvas mjx-container img {
             display: inline-block;
             image-rendering: -webkit-optimize-contrast;
             margin: 0 !important;
             padding: 0 !important;
-            /* 防止图片被外部 CSS 意外压缩 */
             max-width: none !important; 
         }
 
@@ -247,10 +250,7 @@
 
 <div class="container">
     <div class="panel editor-panel">
-        <h2>
-            输入 AI 对话 (Markdown + LaTeX)
-            <span class="version">α1.10(6418.2128)</span>
-        </h2>
+        <h2>输入 AI 对话 (Markdown + LaTeX)</h2>
         <textarea id="mdInput" placeholder="在此粘贴...">
 这是一个抗重影与抗截断测试：
 
@@ -281,10 +281,18 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         </div>
         
         <button id="generateBtn" onclick="generateImage()">生成长图</button>
+
+        <!-- 新增关于部分 -->
+        <div class="about-section">
+            <p><strong>关于：</strong>AIG 长图生成器 <span class="tag-local">纯本地处理</span></p>
+            <p><strong>版本：</strong>α1.1(6418.2137)</p>
+            <p><strong>作者：</strong>基石</p>
+            <p><strong>致谢：</strong>本网页为 Vibe Coding 作品，感谢 Google Gemini 模型的帮助。</p>
+        </div>
     </div>
 
     <div class="panel preview-panel">
-        <h2>生成预览 <span class="version">α1.10(6418.2128)</span></h2>
+        <h2>生成预览</h2>
         <div id="loading" class="loading">⚙️ 正在计算高精度排版并渲染...</div>
         <div id="preview-result"></div>
         <p id="mobile-hint" style="display:none; text-align:center; color:#666; font-size:14px; margin-bottom:10px;">
@@ -345,36 +353,20 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     }
 
     function preprocessMarkdown(text) {
-        // 原有的保护加粗引号逻辑
         let processed = text.replace(/(“|”|"|')(\*\*)/g, '$1\u200B$2');
         processed = processed.replace(/(\*\*)(“|”|"|')/g, '$1\u200B$2');
 
-        // ==========================================
-        // 【全新物理隔开方案】：解决重叠与间距不对称
-        // 核心思想：放弃不可控的 \u200C，改用真实的半角空格，并将外围括号降级为绝对对称的半角括号
-        // ==========================================
-
-        // 1. 处理左侧：全角 （《 转换为 -> ( 《   (半角左括号 + 半角空格 + 左书名号)
         processed = processed.replace(/（(《)/g, '( $1');
-        
-        // 2. 处理右侧：全角 》） 转换为 -> 》 )   (右书名号 + 半角空格 + 半角右括号)
         processed = processed.replace(/(》)）/g, '$1 )');
-
-        // 3. 处理连续书名号：》《 转换为 -> 》 《   (中间插入一个真实的半角空格)
         processed = processed.replace(/(》)(《)/g, '$1 $2');
-
-        // 4. 其他容易重叠的普通标点（句号、引号等），也一律用半角空格强行隔开，最稳定
         processed = processed.replace(/([。《，、；：“”])(《)/g, '$1 $2');
         processed = processed.replace(/(》)([。《，、；：”])/g, '$1 $2');
-        
-        // 5. 修复【】与引号、括号等连用时的重叠，同样用空格物理隔开
         processed = processed.replace(/([“‘（])(【)/g, '$1 $2');
         processed = processed.replace(/(】)([”’）。，、；：])/g, '$1 $2');
 
         return processed;
     }
 
-    // 【核心修复】：动态测算当前设备、当前 DOM 环境下的 1ex 等于多少绝对像素
     function measureExInPixels(container) {
         const testSpan = document.createElement('span');
         testSpan.style.display = 'inline-block';
@@ -385,7 +377,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         container.appendChild(testSpan);
         const px = testSpan.getBoundingClientRect().height;
         container.removeChild(testSpan);
-        return px > 0 ? px : 8; // 兜底返回 8px
+        return px > 0 ? px : 8; 
     }
 
     let finalImageUrl = '';
@@ -441,20 +433,17 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
                 await window.MathJax.typesetPromise([canvasDiv]);
             }
 
-            // 【核心修复】：获取精准的 ex 到 px 的换算率
             const exToPxRate = measureExInPixels(canvasDiv);
             const toPx = (valStr) => {
                 if (!valStr) return '';
                 if (valStr.includes('ex')) {
-                    // 彻底解决 Issue 2: 精准还原尺寸，抛弃原来的乘以 0.5em
                     return (parseFloat(valStr) * exToPxRate).toFixed(2) + 'px';
                 }
                 return valStr;
             };
 
-            // 【iOS 修复：等待所有字体加载和排版引擎就绪】
             await document.fonts.ready; 
-            await new Promise(r => setTimeout(r, 100)); // 给 WebKit 引擎一点重绘时间
+            await new Promise(r => setTimeout(r, 100)); 
 
             const svgs = canvasDiv.querySelectorAll('svg');
 
@@ -462,15 +451,11 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
                 const svg = svgs[i];
                 if (!svg.getAttribute('xmlns')) svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
                 
-                // 【修复颜色不一致的问题】
-                // 动态获取当前元素在 DOM 树中计算后的实际文本颜色 (例如在 blockquote 中会获取到 rgb(102, 102, 102))
                 const computedColor = window.getComputedStyle(svg).color || '#000000';
                 
-                // 将计算出的实际颜色死死绑定到 SVG 内部
                 svg.setAttribute('fill', computedColor);
                 svg.style.color = computedColor;
 
-                // 获取 MathJax 原本计算的精准宽度和基线对齐
                 const origWidth = svg.getAttribute('width');
                 const origHeight = svg.getAttribute('height');
                 const origVA = svg.style.verticalAlign || '';
@@ -479,8 +464,6 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
                 const pxHeight = toPx(origHeight);
                 const pxVA = toPx(origVA);
 
-                // 【解决 Issue 3: 空白间隙】必须在生成 Base64 前，将 SVG 自身的宽高属性强制写死为绝对 px
-                // 这样生成的 IMG 图片在 iOS 下才具备真实的内部物理边界，不会产生外壳大但内容小的问题
                 svg.setAttribute('width', pxWidth);
                 svg.setAttribute('height', pxHeight);
 
@@ -490,11 +473,9 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
                 const img = document.createElement('img');
                 img.src = 'data:image/svg+xml;base64,' + base64;
                 
-                // 将计算出的 px 直接赋值给 img，保证视觉 1:1 还原
                 img.style.width = pxWidth;
                 img.style.height = pxHeight;
                 
-                // 【解决 Issue 4: 基线乱跳】精准套用 MathJax 给的 offset 值
                 if (pxVA) img.style.verticalAlign = pxVA;
 
                 svg.replaceWith(img);
@@ -543,7 +524,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         const a = document.createElement('a');
         a.href = finalImageUrl;
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        a.download = `AI_Chat_Export_${dateStr}_v1.10.png`;
+        a.download = `AI_Chat_Export_${dateStr}_v1.1.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
