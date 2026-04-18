@@ -210,7 +210,10 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         <h2>生成预览</h2>
         <div id="loading" class="loading">正在渲染与生成，请稍候...</div>
         <div id="preview-result"></div>
-        <button id="downloadBtn" onclick="downloadImage()">保存到本地</button>
+        <p id="mobile-hint" style="display:none; text-align:center; color:#666; font-size:14px; margin-bottom:10px;">
+            💡 手机端请直接<b>长按上方图片</b>保存到相册
+        </p>
+        <button id="downloadBtn" onclick="downloadImage()">保存图片 / 分享</button>
     </div>
 </div>
 
@@ -303,6 +306,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         loading.style.display = 'block';
         preview.innerHTML = '';
         dlBtn.style.display = 'none';
+        document.getElementById('mobile-hint').style.display = 'none';
         
         // 清理旧 DOM 和 MathJax 残留状态，防止重影
         canvasDiv.innerHTML = '';
@@ -358,7 +362,10 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
             const img = document.createElement('img');
             img.src = finalImageUrl;
             preview.appendChild(img);
+            
+            // 显示下载按钮和手机端长按提示
             dlBtn.style.display = 'block';
+            document.getElementById('mobile-hint').style.display = 'block';
 
         } catch (error) {
             console.error("渲染错误:", error);
@@ -369,8 +376,28 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         }
     }
 
-    function downloadImage() {
+    async function downloadImage() {
         if (!finalImageUrl) return;
+
+        // 【新增】：尝试调用手机原生分享 API (iOS Safari 完美支持)
+        if (navigator.share) {
+            try {
+                // 将 base64 转为 File 对象以适配分享
+                const res = await fetch(finalImageUrl);
+                const blob = await res.blob();
+                const file = new File([blob], 'AI_Chat_Export.png', { type: 'image/png' });
+
+                await navigator.share({
+                    title: 'AI 对话长图',
+                    files: [file]
+                });
+                return; // 如果唤起原生分享面板成功，就不执行下面的桌面端下载逻辑了
+            } catch (err) {
+                console.log("用户取消分享或分享失败:", err);
+            }
+        }
+
+        // 桌面端传统的下载逻辑
         const a = document.createElement('a');
         a.href = finalImageUrl;
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
