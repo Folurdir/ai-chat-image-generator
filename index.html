@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 对话长图生成器 α1.03(6418.1830)</title>
+    <title>AI 对话长图生成器 α1.031(6418.1841)</title>
 
     <!-- 引入外部依赖库 CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
@@ -161,13 +161,13 @@
         .print-canvas ul > li::before {
             content: "•";
             position: absolute;
-            left: -1em;               /* 定位到左侧缩进区 */
-            top: 0;                   /* 与首行对齐 */
-            font-family: Arial, sans-serif; /* 强制用标准英文字体，保证圆的形状正规 */
-            font-size: 1.2em;         /* 稍微放大点才好看 */
-            line-height: 1.35;        /* 微调与文字基线的垂直居中 */
-            color: var(--primary-color, #333); 
-            letter-spacing: normal;   /* 核心！解除外部 letter-spacing 的干扰 */
+            left: -1em;
+            top: 0;
+            font-family: Arial, sans-serif;
+            font-size: 1.2em;
+            line-height: 1.35;
+            color: inherit;           /* 👈 修改这里：让它继承普通文字的颜色（纯黑或深灰） */
+            letter-spacing: normal;
         }
 
         /* 4. 手动绘制二级嵌套列表的【空心圆点】 */
@@ -175,14 +175,15 @@
             content: "◦";
             font-size: 1.3em;
             line-height: 1.25;
-            color: #555;
+            color: inherit;           /* 👈 修改这里：同样继承普通文字颜色 */
         }
 
-        /* 5. 补充三级嵌套列表的【实心方块】（Markdown 常用） */
+        /* 5. 补充三级嵌套列表的【实心方块】 */
         .print-canvas ul ul ul > li::before {
             content: "▪";
             font-size: 1em;
             line-height: 1.6;
+            color: inherit;           /* 👈 修改这里：同样继承普通文字颜色 */
         }
         
         /* 确保有序列表(1. 2. 3.)不受字距干扰 */
@@ -252,7 +253,7 @@
     <div class="panel editor-panel">
         <h2>
             输入 AI 对话 (Markdown + LaTeX)
-            <span class="version">α1.03(6418.1830)</span>
+            <span class="version">α1.031(6418.1841)</span>
         </h2>
         <textarea id="mdInput" placeholder="在此粘贴...">
 这是一个抗重影与抗截断测试：
@@ -291,7 +292,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     </div>
 
     <div class="panel preview-panel">
-        <h2>生成预览 <span class="version">α1.03(6418.1830)</span></h2>
+        <h2>生成预览 <span class="version">α1.031(6418.1841)</span></h2>
         <div id="loading" class="loading">⚙️ 正在计算高精度排版并渲染...</div>
         <div id="preview-result"></div>
         <p id="mobile-hint" style="display:none; text-align:center; color:#666; font-size:14px; margin-bottom:10px;">
