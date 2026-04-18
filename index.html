@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 对话长图生成器 α1.031(6418.1841)</title>
+    <title>AI 对话长图生成器 α1.032(6418.1850)</title>
 
     <!-- 引入外部依赖库 CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
@@ -143,54 +143,54 @@
         .print-canvas table { border-collapse: collapse; width: 100%; word-break: break-word; margin-bottom: 1em; }
         .print-canvas th, .print-canvas td { border: 1px solid #ccc; padding: 8px; }
         
-        /* ======== 修复列表小圆点在 html2canvas 中渲染错乱的问题 ======== */
-        
-        /* 1. 禁用原生的列表标记，避免 html2canvas 计算崩溃 */
+        /* ======== 修复列表小圆点渲染错乱与对齐问题（终极精准版） ======== */
         .print-canvas ul {
             list-style: none !important;
-            padding-left: 1.8em; /* 统一缩进距离 */
+            padding-left: 1.8em; 
         }
-        
-        /* 2. 为所有列表项建立相对定位基准 */
         .print-canvas li {
             position: relative;
             margin-bottom: 0.5em;
         }
 
-        /* 3. 手动绘制一级列表的【实心圆点】 */
+        /* 统一的伪元素基础设置 */
+        .print-canvas ul li::before {
+            position: absolute;
+            font-family: Arial, sans-serif;
+            color: inherit;
+            letter-spacing: normal;
+            line-height: 1; /* 核心：统一内部行高为1，去除字体默认行距的干扰 */
+        }
+
+        /* 1. 一级：实心圆 */
         .print-canvas ul > li::before {
             content: "•";
-            position: absolute;
-            left: -1em;
-            top: 0;
-            font-family: Arial, sans-serif;
             font-size: 1.2em;
-            line-height: 1.35;
-            color: inherit;           /* 👈 修改这里：让它继承普通文字的颜色（纯黑或深灰） */
-            letter-spacing: normal;
+            left: -1em;    /* 计算：-1 * 1.2 = -1.2em 父级相对距离 */
+            top: 0.2em;    /* 精确居中计算：(父行高1.6 - 自身1.2) / 2 = 0.2em */
         }
 
-        /* 4. 手动绘制二级嵌套列表的【空心圆点】 */
+        /* 2. 二级：空心圆 */
         .print-canvas ul ul > li::before {
-            content: "◦";
-            font-size: 1.3em;
-            line-height: 1.25;
-            color: inherit;           /* 👈 修改这里：同样继承普通文字颜色 */
+            content: "○";     /* 弃用天生偏上的 ◦，改用绝对居中的大空心圆 ○ */
+            font-size: 0.7em; /* 缩小它 */
+            left: -1.7em;     /* 计算：-1.7 * 0.7 ≈ -1.2em 父级相对距离 */
+            top: 0.45em;      /* 精确居中计算：(父行高1.6 - 自身0.7) / 2 = 0.45em */
         }
 
-        /* 5. 补充三级嵌套列表的【实心方块】 */
+        /* 3. 三级：实心方块 */
         .print-canvas ul ul ul > li::before {
-            content: "▪";
-            font-size: 1em;
-            line-height: 1.6;
-            color: inherit;           /* 👈 修改这里：同样继承普通文字颜色 */
+            content: "■";     /* 弃用天生偏下的 ▪，改用绝对居中的大黑方块 ■ */
+            font-size: 0.5em; 
+            left: -2.4em;     /* 计算：-2.4 * 0.5 = -1.2em 父级相对距离 */
+            top: 0.55em;      /* 精确居中计算：(父行高1.6 - 自身0.5) / 2 = 0.55em */
         }
-        
+        /* ========================================================== */
+
         /* 确保有序列表(1. 2. 3.)不受字距干扰 */
         .print-canvas ol li::marker {
             letter-spacing: normal;
         }
-        /* ======================================================= */
 
         /* ============== 公式排版样式保护 ============== */
         .print-canvas mjx-container { 
@@ -253,7 +253,7 @@
     <div class="panel editor-panel">
         <h2>
             输入 AI 对话 (Markdown + LaTeX)
-            <span class="version">α1.031(6418.1841)</span>
+            <span class="version">α1.032(6418.1850)</span>
         </h2>
         <textarea id="mdInput" placeholder="在此粘贴...">
 这是一个抗重影与抗截断测试：
@@ -292,7 +292,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     </div>
 
     <div class="panel preview-panel">
-        <h2>生成预览 <span class="version">α1.031(6418.1841)</span></h2>
+        <h2>生成预览 <span class="version">α1.032(6418.1850)</span></h2>
         <div id="loading" class="loading">⚙️ 正在计算高精度排版并渲染...</div>
         <div id="preview-result"></div>
         <p id="mobile-hint" style="display:none; text-align:center; color:#666; font-size:14px; margin-bottom:10px;">
@@ -524,7 +524,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         const a = document.createElement('a');
         a.href = finalImageUrl;
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        a.download = `AI_Chat_Export_${dateStr}_v1.03.png`;
+        a.download = `AI_Chat_Export_${dateStr}_v1.032.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
