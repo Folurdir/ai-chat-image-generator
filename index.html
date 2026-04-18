@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 对话长图生成器 α1.01(6418.1816)</title>
+    <title>AI 对话长图生成器 α1.02(6418.1820)</title>
 
     <!-- 引入外部依赖库 CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
@@ -37,7 +37,8 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            /* 1. 完善字体栈，显式加入 PingFang SC 和 Microsoft YaHei，确保跨平台字体一致性预期 */
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
             background-color: var(--bg-color);
             margin: 0;
             padding: 15px;
@@ -121,10 +122,12 @@
             color: #000000;
             line-height: 1.6;
             box-sizing: border-box;
-            /* --- 新增：修复 Windows 端 html2canvas 中英文标点重叠问题 --- */
-            font-kerning: none;             /* 禁用字距调整 */
-            font-variant-ligatures: none;   /* 禁用连字 */
-            text-rendering: geometricPrecision; /* 强制几何精度渲染 */
+            
+            /* ======== 新增以下 3 行核心修复代码 ======== */
+            text-rendering: geometricPrecision; /* 强制 Canvas 采用高精度几何渲染 */
+            font-kerning: none;                 /* 禁用字距微调，防止标点符号挤压 */
+            letter-spacing: 0.5px;              /* 增加极其微小的字间距，强迫 html2canvas 独立测算每个字符的物理边界 */
+            /* ========================================= */
         }
 
         .size-a4-p { width: 794px; padding: 40px; font-size: 16px; }
@@ -201,7 +204,7 @@
     <div class="panel editor-panel">
         <h2>
             输入 AI 对话 (Markdown + LaTeX)
-            <span class="version">α1.01(6418.1816)</span>
+            <span class="version">α1.02(6418.1820)</span>
         </h2>
         <textarea id="mdInput" placeholder="在此粘贴...">
 这是一个抗重影与抗截断测试：
@@ -233,7 +236,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     </div>
 
     <div class="panel preview-panel">
-        <h2>生成预览 <span class="version">α1.01(6418.1816)</span></h2>
+        <h2>生成预览 <span class="version">α1.02(6418.1820)</span></h2>
         <div id="loading" class="loading">⚙️ 正在计算高精度排版并渲染...</div>
         <div id="preview-result"></div>
         <p id="mobile-hint" style="display:none; text-align:center; color:#666; font-size:14px; margin-bottom:10px;">
@@ -297,11 +300,11 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         let processed = text.replace(/(“|”|"|')(\*\*)/g, '$1\u200B$2');
         processed = processed.replace(/(\*\*)(“|”|"|')/g, '$1\u200B$2');
         
-        // --- 新增：物理隔离容易在 html2canvas 中计算错位的标点组合 ---
-        processed = processed.replace(/\(《/g, '(\u200B《'); // 左括号接左书名号
-        processed = processed.replace(/》\)/g, '》\u200B)'); // 右书名号接右括号
-        processed = processed.replace(/。\s*\(/g, '。\u200B('); // 句号接左括号
-        processed = processed.replace(/：\s*\(/g, '：\u200B('); // 冒号接左括号
+        // ======== 新增修复代码 ========
+        // 在左书名号、左括号前面插入零宽非连接符 (\u200C)
+        // 彻底阻断 Windows 下 html2canvas 测算宽度时的向前重叠溢出
+        processed = processed.replace(/(.)(《|（|\()/g, '$1\u200C$2');
+        // ============================
         
         return processed;
     }
@@ -465,7 +468,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         const a = document.createElement('a');
         a.href = finalImageUrl;
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        a.download = `AI_Chat_Export_${dateStr}_v1.01.png`;
+        a.download = `AI_Chat_Export_${dateStr}_v1.02.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -477,16 +480,3 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
             const res = await fetch(finalImageUrl);
             const blob = await res.blob();
             const file = new File([blob], 'AI_Chat_Export.png', { type: 'image/png' });
-
-            await navigator.share({
-                title: 'AI 对话长图',
-                files: [file]
-            });
-        } catch (err) {
-            console.log("分享取消或失败:", err);
-        }
-    }
-</script>
-
-</body>
-</html>
