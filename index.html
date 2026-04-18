@@ -206,7 +206,6 @@
             margin: 0 auto 15px auto;
         }
 
-        #downloadBtn { display: none; background: #10b981; margin: 0 auto; width: 100%; }
         .loading { text-align: center; color: #666; font-weight: bold; display: none; }
     </style>
 </head>
@@ -251,7 +250,12 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         <p id="mobile-hint" style="display:none; text-align:center; color:#666; font-size:14px; margin-bottom:10px;">
             💡 上方图片可供<b>直接保存</b>
         </p>
-        <button id="downloadBtn" onclick="downloadImage()">保存图片 / 分享</button>
+
+        <!-- 修改 1：全新的双按钮组 -->
+        <div id="action-group" style="display: none; gap: 10px; margin: 0 auto; width: 100%;">
+            <button id="btn-download" onclick="forceDownload()" style="background: #10b981;">📥 下载图片</button>
+            <button id="btn-share" onclick="invokeShare()" style="background: #8b5cf6;">↗️ 分享 / 发送</button>
+        </div>
     </div>
 </div>
 
@@ -337,13 +341,15 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         const btn = document.getElementById('generateBtn');
         const loading = document.getElementById('loading');
         const preview = document.getElementById('preview-result');
-        const dlBtn = document.getElementById('downloadBtn');
+        const actionGroup = document.getElementById('action-group');
         let canvasDiv = document.getElementById('print-canvas');
 
         btn.disabled = true;
         loading.style.display = 'block';
         preview.innerHTML = '';
-        dlBtn.style.display = 'none';
+        
+        // 生成前隐藏操作按钮
+        actionGroup.style.display = 'none';
         
         // 隐藏手机端长按提示（如果有的话）
         const mobileHint = document.getElementById('mobile-hint');
@@ -484,7 +490,13 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
             imgEl.src = finalImageUrl;
             preview.appendChild(imgEl);
             
-            dlBtn.style.display = 'block';
+            // 修改 2：生成成功后，展示按钮组逻辑
+            actionGroup.style.display = 'flex';
+            // 如果当前浏览器完全不支持分享 API，则隐藏分享按钮
+            if (!navigator.share) {
+                document.getElementById('btn-share').style.display = 'none';
+            }
+            
             if(mobileHint) mobileHint.style.display = 'block';
 
         } catch (error) {
@@ -496,28 +508,9 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         }
     }
 
-    async function downloadImage() {
+    // 修改 3：独立的下载逻辑 (电脑手机点击都直接走下载)
+    function forceDownload() {
         if (!finalImageUrl) return;
-
-        // 【新增】：尝试调用手机原生分享 API (iOS Safari 完美支持)
-        if (navigator.share) {
-            try {
-                // 将 base64 转为 File 对象以适配分享
-                const res = await fetch(finalImageUrl);
-                const blob = await res.blob();
-                const file = new File([blob], 'AI_Chat_Export.png', { type: 'image/png' });
-
-                await navigator.share({
-                    title: 'AI 对话长图',
-                    files: [file]
-                });
-                return; // 如果唤起原生分享面板成功，就不执行下面的桌面端下载逻辑了
-            } catch (err) {
-                console.log("用户取消分享或分享失败:", err);
-            }
-        }
-
-        // 桌面端传统的下载逻辑
         const a = document.createElement('a');
         a.href = finalImageUrl;
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
@@ -525,6 +518,24 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+    }
+
+    // 修改 3：独立的分享逻辑 (调用系统原生分享面板)
+    async function invokeShare() {
+        if (!finalImageUrl || !navigator.share) return;
+        try {
+            const res = await fetch(finalImageUrl);
+            const blob = await res.blob();
+            const file = new File([blob], 'AI_Chat_Export.png', { type: 'image/png' });
+
+            await navigator.share({
+                title: 'AI 对话长图',
+                files: [file]
+            });
+        } catch (err) {
+            console.log("用户取消分享或系统限制:", err);
+            // 此处不要再执行下载逻辑，静默处理即可
+        }
     }
 </script>
 
