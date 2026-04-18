@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 对话长图生成器 α1.032(6418.1850)</title>
+    <title>AI 对话长图生成器 α1.0321(6418.1857)</title>
 
     <!-- 引入外部依赖库 CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
@@ -143,54 +143,61 @@
         .print-canvas table { border-collapse: collapse; width: 100%; word-break: break-word; margin-bottom: 1em; }
         .print-canvas th, .print-canvas td { border: 1px solid #ccc; padding: 8px; }
         
-        /* ======== 修复列表小圆点渲染错乱与对齐问题（终极精准版） ======== */
+        /* ======== 修复列表小圆点在 html2canvas 中渲染错乱的问题 ======== */
+        
+        /* 1. 禁用原生的列表标记，避免 html2canvas 计算崩溃 */
         .print-canvas ul {
             list-style: none !important;
-            padding-left: 1.8em; 
+            padding-left: 1.8em;
         }
+        
+        /* 2. 为所有列表项建立相对定位基准 */
         .print-canvas li {
             position: relative;
             margin-bottom: 0.5em;
         }
 
-        /* 统一的伪元素基础设置 */
+        /* 统一提取所有级别标号的公共样式 */
         .print-canvas ul li::before {
             position: absolute;
-            font-family: Arial, sans-serif;
-            color: inherit;
-            letter-spacing: normal;
-            line-height: 1; /* 核心：统一内部行高为1，去除字体默认行距的干扰 */
+            left: -1.5em;       /* 固定在左侧缩进区 */
+            width: 1.2em;       /* 给予固定宽度 */
+            text-align: center; /* 标号自身居中对齐 */
+            font-family: Arial, sans-serif; /* 强制使用几何标准度高的英文字体 */
+            color: inherit;     /* 继承文字颜色 */
+            letter-spacing: normal; 
+            top: 0;             /* 起点与文本首行平齐 */
         }
 
-        /* 1. 一级：实心圆 */
+        /* 3. 一级列表：实心圆点 */
         .print-canvas ul > li::before {
-            content: "•";
+            content: "•";       /* 标准项目符号 */
             font-size: 1.2em;
-            left: -1em;    /* 计算：-1 * 1.2 = -1.2em 父级相对距离 */
-            top: 0.2em;    /* 精确居中计算：(父行高1.6 - 自身1.2) / 2 = 0.2em */
+            /* 严格计算高度：全局行高1.6 ÷ 本身字号1.2 ≈ 1.333 */
+            line-height: 1.333; 
         }
 
-        /* 2. 二级：空心圆 */
+        /* 4. 二级嵌套列表：空心圆点 */
         .print-canvas ul ul > li::before {
-            content: "○";     /* 弃用天生偏上的 ◦，改用绝对居中的大空心圆 ○ */
-            font-size: 0.7em; /* 缩小它 */
-            left: -1.7em;     /* 计算：-1.7 * 0.7 ≈ -1.2em 父级相对距离 */
-            top: 0.45em;      /* 精确居中计算：(父行高1.6 - 自身0.7) / 2 = 0.45em */
+            content: "○";       /* 换用标准大号白圆圈 (U+25CB)，基线绝对居中 */
+            font-size: 0.85em;  /* 视觉上缩小面积 */
+            /* 严格计算高度：全局行高1.6 ÷ 本身字号0.85 ≈ 1.882 */
+            line-height: 1.882; 
         }
 
-        /* 3. 三级：实心方块 */
+        /* 5. 三级嵌套列表：实心方块 */
         .print-canvas ul ul ul > li::before {
-            content: "■";     /* 弃用天生偏下的 ▪，改用绝对居中的大黑方块 ■ */
-            font-size: 0.5em; 
-            left: -2.4em;     /* 计算：-2.4 * 0.5 = -1.2em 父级相对距离 */
-            top: 0.55em;      /* 精确居中计算：(父行高1.6 - 自身0.5) / 2 = 0.55em */
+            content: "■";       /* 换用标准大号黑方块 (U+25A0)，基线绝对居中 */
+            font-size: 0.7em;   /* 视觉上缩小面积 */
+            /* 严格计算高度：全局行高1.6 ÷ 本身字号0.7 ≈ 2.285 */
+            line-height: 2.285; 
         }
-        /* ========================================================== */
-
+        
         /* 确保有序列表(1. 2. 3.)不受字距干扰 */
         .print-canvas ol li::marker {
             letter-spacing: normal;
         }
+        /* ======================================================= */
 
         /* ============== 公式排版样式保护 ============== */
         .print-canvas mjx-container { 
@@ -253,7 +260,7 @@
     <div class="panel editor-panel">
         <h2>
             输入 AI 对话 (Markdown + LaTeX)
-            <span class="version">α1.032(6418.1850)</span>
+            <span class="version">α1.0321(6418.1857)</span>
         </h2>
         <textarea id="mdInput" placeholder="在此粘贴...">
 这是一个抗重影与抗截断测试：
@@ -292,7 +299,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     </div>
 
     <div class="panel preview-panel">
-        <h2>生成预览 <span class="version">α1.032(6418.1850)</span></h2>
+        <h2>生成预览 <span class="version">α1.0321(6418.1857)</span></h2>
         <div id="loading" class="loading">⚙️ 正在计算高精度排版并渲染...</div>
         <div id="preview-result"></div>
         <p id="mobile-hint" style="display:none; text-align:center; color:#666; font-size:14px; margin-bottom:10px;">
@@ -335,7 +342,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     function protectMath(text) {
         mathBlocks = [];
         let index = 0;
-        let processed = text.replace(/\$\$([\s\S]*?)\$\$/g, function(match) {
+        let processed = text.replace(/\现\$([\s\S]*?)\$\$/g, function(match) {
             mathBlocks.push(match); return `@@MATH_BLOCK_${index++}@@`;
         });
         processed = processed.replace(/\$([^\n\$]*?)\$/g, function(match) {
@@ -524,7 +531,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         const a = document.createElement('a');
         a.href = finalImageUrl;
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        a.download = `AI_Chat_Export_${dateStr}_v1.032.png`;
+        a.download = `AI_Chat_Export_${dateStr}_v1.0321.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
