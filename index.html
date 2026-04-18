@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 对话长图生成器 α1.0(6418.1409)</title>
+    <title>AI 对话长图生成器 α1.01(6418.1816)</title>
 
     <!-- 引入外部依赖库 CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
@@ -121,6 +121,10 @@
             color: #000000;
             line-height: 1.6;
             box-sizing: border-box;
+            /* --- 新增：修复 Windows 端 html2canvas 中英文标点重叠问题 --- */
+            font-kerning: none;             /* 禁用字距调整 */
+            font-variant-ligatures: none;   /* 禁用连字 */
+            text-rendering: geometricPrecision; /* 强制几何精度渲染 */
         }
 
         .size-a4-p { width: 794px; padding: 40px; font-size: 16px; }
@@ -197,7 +201,7 @@
     <div class="panel editor-panel">
         <h2>
             输入 AI 对话 (Markdown + LaTeX)
-            <span class="version">α1.0(6418.1409)</span>
+            <span class="version">α1.01(6418.1816)</span>
         </h2>
         <textarea id="mdInput" placeholder="在此粘贴...">
 这是一个抗重影与抗截断测试：
@@ -229,7 +233,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     </div>
 
     <div class="panel preview-panel">
-        <h2>生成预览 <span class="version">α1.0(6418.1409)</span></h2>
+        <h2>生成预览 <span class="version">α1.01(6418.1816)</span></h2>
         <div id="loading" class="loading">⚙️ 正在计算高精度排版并渲染...</div>
         <div id="preview-result"></div>
         <p id="mobile-hint" style="display:none; text-align:center; color:#666; font-size:14px; margin-bottom:10px;">
@@ -291,7 +295,15 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
 
     function preprocessMarkdown(text) {
         let processed = text.replace(/(“|”|"|')(\*\*)/g, '$1\u200B$2');
-        return processed.replace(/(\*\*)(“|”|"|')/g, '$1\u200B$2');
+        processed = processed.replace(/(\*\*)(“|”|"|')/g, '$1\u200B$2');
+        
+        // --- 新增：物理隔离容易在 html2canvas 中计算错位的标点组合 ---
+        processed = processed.replace(/\(《/g, '(\u200B《'); // 左括号接左书名号
+        processed = processed.replace(/》\)/g, '》\u200B)'); // 右书名号接右括号
+        processed = processed.replace(/。\s*\(/g, '。\u200B('); // 句号接左括号
+        processed = processed.replace(/：\s*\(/g, '：\u200B('); // 冒号接左括号
+        
+        return processed;
     }
 
     // 【核心修复】：动态测算当前设备、当前 DOM 环境下的 1ex 等于多少绝对像素
@@ -453,7 +465,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         const a = document.createElement('a');
         a.href = finalImageUrl;
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        a.download = `AI_Chat_Export_${dateStr}_v1.0.png`;
+        a.download = `AI_Chat_Export_${dateStr}_v1.01.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
