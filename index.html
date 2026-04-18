@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 对话长图生成器 α1.02(6418.1820)</title>
+    <title>AI 对话长图生成器 α1.03(6418.1830)</title>
 
     <!-- 引入外部依赖库 CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
@@ -143,6 +143,54 @@
         .print-canvas table { border-collapse: collapse; width: 100%; word-break: break-word; margin-bottom: 1em; }
         .print-canvas th, .print-canvas td { border: 1px solid #ccc; padding: 8px; }
         
+        /* ======== 修复列表小圆点在 html2canvas 中渲染错乱的问题 ======== */
+        
+        /* 1. 禁用原生的列表标记，避免 html2canvas 计算崩溃 */
+        .print-canvas ul {
+            list-style: none !important;
+            padding-left: 1.8em; /* 统一缩进距离 */
+        }
+        
+        /* 2. 为所有列表项建立相对定位基准 */
+        .print-canvas li {
+            position: relative;
+            margin-bottom: 0.5em;
+        }
+
+        /* 3. 手动绘制一级列表的【实心圆点】 */
+        .print-canvas ul > li::before {
+            content: "•";
+            position: absolute;
+            left: -1em;               /* 定位到左侧缩进区 */
+            top: 0;                   /* 与首行对齐 */
+            font-family: Arial, sans-serif; /* 强制用标准英文字体，保证圆的形状正规 */
+            font-size: 1.2em;         /* 稍微放大点才好看 */
+            line-height: 1.35;        /* 微调与文字基线的垂直居中 */
+            color: var(--primary-color, #333); 
+            letter-spacing: normal;   /* 核心！解除外部 letter-spacing 的干扰 */
+        }
+
+        /* 4. 手动绘制二级嵌套列表的【空心圆点】 */
+        .print-canvas ul ul > li::before {
+            content: "◦";
+            font-size: 1.3em;
+            line-height: 1.25;
+            color: #555;
+        }
+
+        /* 5. 补充三级嵌套列表的【实心方块】（Markdown 常用） */
+        .print-canvas ul ul ul > li::before {
+            content: "▪";
+            font-size: 1em;
+            line-height: 1.6;
+        }
+        
+        /* 确保有序列表(1. 2. 3.)不受字距干扰 */
+        .print-canvas ol li::marker {
+            letter-spacing: normal;
+        }
+        /* ======================================================= */
+
         /* ============== 公式排版样式保护 ============== */
         .print-canvas mjx-container { 
             overflow: visible !important; 
@@ -204,7 +252,7 @@
     <div class="panel editor-panel">
         <h2>
             输入 AI 对话 (Markdown + LaTeX)
-            <span class="version">α1.02(6418.1820)</span>
+            <span class="version">α1.03(6418.1830)</span>
         </h2>
         <textarea id="mdInput" placeholder="在此粘贴...">
 这是一个抗重影与抗截断测试：
@@ -213,7 +261,14 @@
 $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
 
 行内公式 $x_{1,2} = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$ 测试下沿是否被切。
-        </textarea>
+
+列表测试：
+- 第一项
+- 第二项
+  - 嵌套项
+  - 嵌套项二
+    - 第三层嵌套
+</textarea>
         
         <div class="controls">
             <select id="paperSize">
@@ -236,7 +291,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     </div>
 
     <div class="panel preview-panel">
-        <h2>生成预览 <span class="version">α1.02(6418.1820)</span></h2>
+        <h2>生成预览 <span class="version">α1.03(6418.1830)</span></h2>
         <div id="loading" class="loading">⚙️ 正在计算高精度排版并渲染...</div>
         <div id="preview-result"></div>
         <p id="mobile-hint" style="display:none; text-align:center; color:#666; font-size:14px; margin-bottom:10px;">
@@ -468,7 +523,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         const a = document.createElement('a');
         a.href = finalImageUrl;
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        a.download = `AI_Chat_Export_${dateStr}_v1.02.png`;
+        a.download = `AI_Chat_Export_${dateStr}_v1.03.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
