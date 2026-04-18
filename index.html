@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 对话长图生成器 α1.081(6418.2015)</title>
+    <title>AI 对话长图生成器 α1.082(6418.2020)</title>
 
     <!-- 引入外部依赖库 CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
@@ -112,11 +112,8 @@
 
         #render-wrapper {
             position: absolute;
-            left: 0;
-            top: 0;
-            z-index: -9999;
-            opacity: 0.01; /* 不要设为 0，防止 iOS 直接忽略渲染 */
-            pointer-events: none; /* 防止遮挡用户点击 */
+            left: -9999px;
+            top: -9999px;
         }
 
         .print-canvas {
@@ -133,51 +130,58 @@
 
         .print-canvas p { margin-bottom: 1em; }
 
-        /* 修复1：行内代码块（针对 iOS 极限精简） */
+        /* ==========================================
+           【iOS Safari 专项修复】代码块渲染样式
+           ========================================== */
+
+        /* 1. 行内代码块（浅灰底色） */
         .print-canvas code { 
             background: #f0f0f0; 
-            /* 将 px 换成相对单位 em，避免 Safari 绝对像素计算偏差 */
+            /* 稍微调整 padding，使用 em 防止 iOS 像素计算误差 */
             padding: 0.2em 0.4em; 
             border-radius: 4px; 
-            /* 必须把苹果系统的 Menlo/Monaco 放在最前面 */
+            /* 【关键1】首位必须引入苹果原生等宽字体 Menlo，解决 iOS 字体尺寸测算失败 */
             font-family: Menlo, Monaco, Consolas, 'Courier New', monospace; 
-            font-size: 0.9em; 
+            font-size: 0.85em; 
             
-            /* 核心修复：移除 box-decoration-break，使用最保守的换行策略 */
+            /* 【关键2】彻底解决 iOS 背景块拉长/错位 Bug */
+            /* 将 inline 改为 inline-block，强迫 Safari 将其作为一个不可分割的物理矩形交给 html2canvas */
+            display: inline-block; 
+            max-width: 100%; /* 防止遇到极长的死链撑爆页面 */
+            vertical-align: bottom; /* 修正 inline-block 引起的轻微上下浮动 */
+            
+            /* 温和的换行策略 */
             white-space: pre-wrap; 
-            word-break: normal; 
-            overflow-wrap: break-word; 
-            display: inline; /* 强制行内，不加任何影响盒子的额外属性 */
+            word-break: break-word; 
+            overflow-wrap: break-word;
         }
 
-        /* 修复2：多行代码块外层 */
+        /* 2. 多行代码块外层容器（深黑底色） */
         .print-canvas pre { 
             background: #1e1e1e; 
-            padding: 15px; 
+            padding: 16px; 
             border-radius: 8px; 
-            font-family: Menlo, Monaco, Consolas, 'Courier New', monospace; 
             
-            /* 核心修复：强制块级显示，限制最大宽度，防止 Safari 撑破容器 */
-            display: block;
-            max-width: 100%;
-            overflow: hidden; /* 隐藏可能产生的溢出，防止截图拉伸 */
-            
+            /* 【关键3】iOS 硬件加速隔离 */
+            /* 防止 Safari 离屏 Canvas 截图时，深色背景框与内部白色文字发生层级交错或被裁切 */
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
+
             white-space: pre-wrap; 
             word-break: normal; 
             overflow-wrap: break-word; 
         }
 
-        /* 修复3：多行代码块内层文字 */
+        /* 3. 多行代码块内层文字 */
         .print-canvas pre code { 
             background: transparent; 
             padding: 0; 
             color: #fff; 
-            font-size: 1em;
-            
-            /* 继承外层的安全换行策略 */
+            /* 【关键4】必须在这里将 inline-block 覆盖回 block，否则多行代码块会缩成一团 */
+            display: block; 
+            max-width: none;
             white-space: pre-wrap; 
-            word-break: normal; 
-            overflow-wrap: break-word; 
+            word-break: break-word;
         }
 
         .print-canvas blockquote { border-left: 4px solid #ccc; margin: 0; padding-left: 15px; color: #666; }
@@ -245,7 +249,7 @@
     <div class="panel editor-panel">
         <h2>
             输入 AI 对话 (Markdown + LaTeX)
-            <span class="version">α1.081(6418.2015)</span>
+            <span class="version">α1.082(6418.2020)</span>
         </h2>
         <textarea id="mdInput" placeholder="在此粘贴...">
 这是一个抗重影与抗截断测试：
@@ -277,7 +281,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     </div>
 
     <div class="panel preview-panel">
-        <h2>生成预览 <span class="version">α1.081(6418.2015)</span></h2>
+        <h2>生成预览 <span class="version">α1.082(6418.2020)</span></h2>
         <div id="loading" class="loading">⚙️ 正在计算高精度排版并渲染...</div>
         <div id="preview-result"></div>
         <p id="mobile-hint" style="display:none; text-align:center; color:#666; font-size:14px; margin-bottom:10px;">
@@ -437,6 +441,10 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
                 return valStr;
             };
 
+            // 【iOS 修复：等待所有字体加载和排版引擎就绪】
+            await document.fonts.ready; 
+            await new Promise(r => setTimeout(r, 100)); // 给 WebKit 引擎一点重绘时间
+
             const svgs = canvasDiv.querySelectorAll('svg');
 
             for (let i = 0; i < svgs.length; i++) {
@@ -524,7 +532,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         const a = document.createElement('a');
         a.href = finalImageUrl;
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        a.download = `AI_Chat_Export_${dateStr}_v1.081.png`;
+        a.download = `AI_Chat_Export_${dateStr}_v1.082.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
