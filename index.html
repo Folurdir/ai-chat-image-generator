@@ -489,4 +489,26 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
                 const blob = await res.blob();
                 const file = new File([blob], 'AI_Chat_Export.png', { type: 'image/png' });
 
-                await navigator.share(
+                await navigator.share({
+                    title: 'AI 对话长图',
+                    files: [file]
+                });
+                return; // 如果唤起原生分享面板成功，就不执行下面的桌面端下载逻辑了
+            } catch (err) {
+                console.log("用户取消分享或分享失败:", err);
+            }
+        }
+
+        // 桌面端传统的下载逻辑
+        const a = document.createElement('a');
+        a.href = finalImageUrl;
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        a.download = `AI_Chat_Export_${dateStr}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+</script>
+
+</body>
+</html>
