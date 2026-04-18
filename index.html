@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 对话长图生成器 α1.06(6418.1946)</title>
+    <title>AI 对话长图生成器 α1.07(6418.1955)</title>
 
     <!-- 引入外部依赖库 CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
@@ -197,7 +197,7 @@
     <div class="panel editor-panel">
         <h2>
             输入 AI 对话 (Markdown + LaTeX)
-            <span class="version">α1.06(6418.1946)</span>
+            <span class="version">α1.07(6418.1955)</span>
         </h2>
         <textarea id="mdInput" placeholder="在此粘贴...">
 这是一个抗重影与抗截断测试：
@@ -229,7 +229,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     </div>
 
     <div class="panel preview-panel">
-        <h2>生成预览 <span class="version">α1.06(6418.1946)</span></h2>
+        <h2>生成预览 <span class="version">α1.07(6418.1955)</span></h2>
         <div id="loading" class="loading">⚙️ 正在计算高精度排版并渲染...</div>
         <div id="preview-result"></div>
         <p id="mobile-hint" style="display:none; text-align:center; color:#666; font-size:14px; margin-bottom:10px;">
@@ -298,11 +298,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         // 使用 \u200C (零宽不连字 Zero-Width Non-Joiner) 打断连续全角标点的自动挤压
         
         // 1. 保护书名号《 左侧的标点（如：（《  。《  ，《  ：“《 等）
-        processed = processed.replace(/([（。《，、；：“”])/g, function(match) {
-            return match + '\u200C';
-        });
-        
-        // （上面为了保险也可写得更明确：）
+        // 删除无差别替换，只保留精确匹配：当左侧是标点，右侧是《 时，才插入 \u200C
         processed = processed.replace(/([（。《，、；：“”])(《)/g, '$1\u200C$2');
         
         // 2. 保护书名号 》右侧的标点（如：》）  》。  》， 等）
@@ -480,7 +476,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         const a = document.createElement('a');
         a.href = finalImageUrl;
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        a.download = `AI_Chat_Export_${dateStr}_v1.06.png`;
+        a.download = `AI_Chat_Export_${dateStr}_v1.07.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
