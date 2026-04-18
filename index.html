@@ -156,11 +156,6 @@
             max-width: 100%;
             height: auto;
         }
-        /* 给内联公式下方留一点点呼吸空间，防止 html2canvas 算错高度裁剪 */
-        .print-canvas mjx-container[display="false"] {
-            padding-bottom: 2px; 
-            padding-top: 2px;
-        }
         /* 块级公式额外保护 */
         .print-canvas mjx-container[display="true"] {
             margin: 1em 0 !important;
@@ -190,10 +185,6 @@
             /* 抵消图片默认的下边距干扰 */
             margin-bottom: 0 !important;
             padding: 0 !important;
-        }
-        /* 行内公式特殊处理：稍微下沉一点点以贴合汉字的视觉底线 */
-        .print-canvas mjx-container[display="false"] img {
-            position: relative;
         }
         /* ==================================================== */
 
@@ -410,18 +401,8 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
                 await window.MathJax.typesetPromise([canvasDiv]);
             }
 
-            // ================= 核心修复：将 SVG 强制转为普通 IMG =================
+            // ================= 核心修复：将 SVG 强制转为普通 IMG (完美版) =================
             const svgs = canvasDiv.querySelectorAll('svg');
-            
-            // 【新增】：用于解决 iOS 下 ex 单位丢失导致公式缩小的转换函数
-            const fixUnit = (valStr) => {
-                if (!valStr) return '';
-                // 强制将 ex 转换为 em (1ex 约等于 0.5em)
-                if (valStr.includes('ex')) {
-                    return (parseFloat(valStr) * 0.5) + 'em';
-                }
-                return valStr;
-            };
 
             for (let i = 0; i < svgs.length; i++) {
                 const svg = svgs[i];
@@ -430,30 +411,33 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
                     svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
                 }
                 
+                // 【关键新增 1】：在移除 SVG 前，获取浏览器当前精确计算出的物理像素宽高
+                const rect = svg.getBoundingClientRect();
+                
+                // 【关键新增 2】：获取 MathJax 算好的极其精确的基线偏移像素值（解决问题 4）
+                const computedStyle = window.getComputedStyle(svg);
+                const exactVerticalAlign = computedStyle.verticalAlign;
+
                 svg.setAttribute('fill', '#000000');
                 svg.style.color = '#000000';
 
-                // 获取原始的 ex 属性
-                const width = svg.getAttribute('width');
-                const height = svg.getAttribute('height');
-                const verticalAlign = svg.style.verticalAlign || '';
-
                 const svgData = new XMLSerializer().serializeToString(svg);
+                // 使用 encodeURIComponent 替代废弃的 unescape 提高兼容性
                 const base64 = btoa(unescape(encodeURIComponent(svgData)));
 
                 const img = document.createElement('img');
                 img.src = 'data:image/svg+xml;base64,' + base64;
                 
-                // 【修改】：应用转换后的 em 单位，彻底解决 iOS 下字号缩小和错位
-                img.style.width = fixUnit(width);
-                img.style.height = fixUnit(height);
-                if (verticalAlign) {
-                    img.style.verticalAlign = fixUnit(verticalAlign);
-                }
+                // 【修复问题 2 & 3】：直接赋予绝对物理像素，彻底消除缩放错乱和巨大的空隙
+                img.style.width = `${rect.width}px`;
+                img.style.height = `${rect.height}px`;
                 
-                // 为了防止 iOS 图片渲染拉伸，锁定图片自身的属性
-                img.setAttribute('width', fixUnit(width));
-                img.setAttribute('height', fixUnit(height));
+                // 【修复问题 4】：原封不动地继承基线偏移，让公式完美贴合汉字底部
+                img.style.verticalAlign = exactVerticalAlign;
+                
+                // 锁定图片自身的属性，防止 html2canvas 或 iOS 内部拉伸
+                img.setAttribute('width', rect.width);
+                img.setAttribute('height', rect.height);
 
                 svg.replaceWith(img);
             }
