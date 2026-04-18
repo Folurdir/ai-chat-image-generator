@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 对话长图生成器 α1.07(6418.1955)</title>
+    <title>AI 对话长图生成器 α1.08(6418.2007)</title>
 
     <!-- 引入外部依赖库 CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
@@ -129,9 +129,42 @@
         .size-2inch { width: 384px; padding: 16px; font-size: 18px; }
 
         .print-canvas p { margin-bottom: 1em; }
-        .print-canvas code { background: #f0f0f0; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; word-break: break-all; }
-        .print-canvas pre { background: #1e1e1e; padding: 15px; border-radius: 8px; overflow-x: hidden; white-space: pre-wrap; word-wrap: break-word; }
-        .print-canvas pre code { background: transparent; padding: 0; color: #fff; word-break: break-all; }
+
+        /* 修复1：行内代码块 */
+        .print-canvas code { 
+            background: #f0f0f0; 
+            padding: 2px 4px; 
+            border-radius: 4px; 
+            /* 增加具体字体兜底，防止 html2canvas 测算失败 */
+            font-family: Consolas, Monaco, 'Courier New', monospace; 
+            font-size: 0.9em; 
+            /* 移除致命的 word-break: break-all，改为更安全的 overflow-wrap */
+            overflow-wrap: break-word; 
+            /* 修复 html2canvas 对行内元素背景的断行渲染问题 */
+            box-decoration-break: clone; 
+            -webkit-box-decoration-break: clone;
+        }
+
+        /* 修复2：多行代码块外层容器 */
+        .print-canvas pre { 
+            background: #1e1e1e; 
+            padding: 15px; 
+            border-radius: 8px; 
+            /* 移除 overflow-x: hidden; 防止 html2canvas 内部偏移时把文字误裁掉 */
+            white-space: pre-wrap; 
+            overflow-wrap: break-word; 
+        }
+
+        /* 修复3：多行代码块内层文字 */
+        .print-canvas pre code { 
+            background: transparent; 
+            padding: 0; 
+            color: #fff; 
+            /* 同样移除 word-break: break-all */
+            white-space: pre-wrap; 
+            overflow-wrap: break-word;
+        }
+
         .print-canvas blockquote { border-left: 4px solid #ccc; margin: 0; padding-left: 15px; color: #666; }
         .print-canvas table { border-collapse: collapse; width: 100%; word-break: break-word; margin-bottom: 1em; }
         .print-canvas th, .print-canvas td { border: 1px solid #ccc; padding: 8px; }
@@ -197,7 +230,7 @@
     <div class="panel editor-panel">
         <h2>
             输入 AI 对话 (Markdown + LaTeX)
-            <span class="version">α1.07(6418.1955)</span>
+            <span class="version">α1.08(6418.2007)</span>
         </h2>
         <textarea id="mdInput" placeholder="在此粘贴...">
 这是一个抗重影与抗截断测试：
@@ -229,7 +262,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     </div>
 
     <div class="panel preview-panel">
-        <h2>生成预览 <span class="version">α1.07(6418.1955)</span></h2>
+        <h2>生成预览 <span class="version">α1.08(6418.2007)</span></h2>
         <div id="loading" class="loading">⚙️ 正在计算高精度排版并渲染...</div>
         <div id="preview-result"></div>
         <p id="mobile-hint" style="display:none; text-align:center; color:#666; font-size:14px; margin-bottom:10px;">
@@ -476,7 +509,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         const a = document.createElement('a');
         a.href = finalImageUrl;
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        a.download = `AI_Chat_Export_${dateStr}_v1.07.png`;
+        a.download = `AI_Chat_Export_${dateStr}_v1.08.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
