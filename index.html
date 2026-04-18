@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 对话长图生成器 (解决截断与重影)</title>
+
+    <!-- 引入外部依赖库 CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <!-- MathJax 3 配置与引入 -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            },
+            svg: { 
+                // 必须关闭 fontCache 以防 html2canvas 找不到全局缓存导致的空白
+                fontCache: 'none' 
+            },
+            startup: { typeset: false } // 禁用自动渲染，改为手动控制
+        };
+    </script>
+    <script id="MathJax-script" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
+
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --bg-color: #f3f4f6;
+            --panel-bg: #ffffff;
+            --border-color: #e5e7eb;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            margin: 0;
+            padding: 15px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        @media(min-width: 768px) {
+            .container { flex-direction: row; }
+            .editor-panel, .preview-panel { flex: 1; }
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        h2 { margin-top: 0; font-size: 1.2rem; color: #111; }
+
+        textarea {
+            width: 100%;
+            height: 300px;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 14px;
+            resize: vertical;
+            box-sizing: border-box;
+            margin-bottom: 15px;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        select, button {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background: #fff;
+            font-size: 14px;
+            outline: none;
+        }
+
+        button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            transition: opacity 0.2s;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        button:hover { opacity: 0.9; }
+        button:disabled { background: #9ca3af; cursor: not-allowed; }
+
+        #render-wrapper {
+            position: absolute;
+            left: -9999px;
+            top: -9999px;
+        }
+
+        .print-canvas {
+            background: #ffffff;
+            color: #000000;
+            line-height: 1.6;
+            box-sizing: border-box;
+        }
+
+        .size-a4-p { width: 794px; padding: 40px; font-size: 16px; }
+        .size-a4-l { width: 1123px; padding: 50px; font-size: 16px; }
+        .size-3inch { width: 576px; padding: 24px; font-size: 18px; }
+        .size-2inch { width: 384px; padding: 16px; font-size: 18px; }
+
+        .print-canvas p { margin-bottom: 1em; }
+        .print-canvas code { background: #f0f0f0; padding: 2px 4px; border-radius: 4px; font-family: monospace; font-size: 0.9em; word-break: break-all; }
+        .print-canvas pre { background: #1e1e1e; padding: 15px; border-radius: 8px; overflow-x: hidden; white-space: pre-wrap; word-wrap: break-word; }
+        .print-canvas pre code { background: transparent; padding: 0; color: #fff; word-break: break-all; }
+        .print-canvas blockquote { border-left: 4px solid #ccc; margin: 0; padding-left: 15px; color: #666; }
+        .print-canvas table { border-collapse: collapse; width: 100%; word-break: break-word; margin-bottom: 1em; }
+        .print-canvas th, .print-canvas td { border: 1px solid #ccc; padding: 8px; }
+        
+        /* ============== 修复公式截断的核心 CSS ============== */
+        .print-canvas mjx-container { 
+            /* 强制覆盖隐藏，允许公式上下延伸（如积分号、下标） */
+            overflow: visible !important; 
+            max-width: 100%;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+        .print-canvas mjx-container svg {
+            overflow: visible !important;
+            max-width: 100%;
+            height: auto;
+        }
+        /* 给内联公式下方留一点点呼吸空间，防止 html2canvas 算错高度裁剪 */
+        .print-canvas mjx-container[display="false"] {
+            padding-bottom: 2px; 
+            padding-top: 2px;
+        }
+        /* 块级公式额外保护 */
+        .print-canvas mjx-container[display="true"] {
+            margin: 1em 0 !important;
+            padding: 5px 0;
+        }
+        /* ==================================================== */
+
+        #preview-result img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            display: block;
+            margin: 0 auto 15px auto;
+        }
+
+        #downloadBtn { display: none; background: #10b981; margin: 0 auto; width: 100%; }
+        .loading { text-align: center; color: #666; font-weight: bold; display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="panel editor-panel">
+        <h2>输入 AI 对话 (Markdown + LaTeX)</h2>
+        <textarea id="mdInput" placeholder="在此粘贴...">
+这是一个抗重影与抗截断测试：
+
+包含下划线的复杂公式（测试是否会被 Markdown 吃掉）：
+$$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
+
+行内公式 $x_{1,2} = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$ 测试下沿是否被切。
+        </textarea>
+        
+        <div class="controls">
+            <select id="paperSize">
+                <option value="a4">A4 纸</option>
+                <option value="3inch">三寸纸 (80mm热敏打印)</option>
+                <option value="2inch">两寸纸 (58mm热敏打印)</option>
+            </select>
+            <select id="orientation">
+                <option value="p">竖向 (Portrait)</option>
+                <option value="l">横向 (Landscape)</option>
+            </select>
+            <select id="quality">
+                <option value="2">清晰 (推荐)</option>
+                <option value="1.5">标准</option>
+                <option value="3">超清 (文件较大)</option>
+            </select>
+        </div>
+        
+        <button id="generateBtn" onclick="generateImage()">生成长图</button>
+    </div>
+
+    <div class="panel preview-panel">
+        <h2>生成预览</h2>
+        <div id="loading" class="loading">正在渲染与生成，请稍候...</div>
+        <div id="preview-result"></div>
+        <button id="downloadBtn" onclick="downloadImage()">保存到本地</button>
+    </div>
+</div>
+
+<div id="render-wrapper">
+    <div id="print-canvas" class="print-canvas size-a4-p"></div>
+</div>
+
+<script>
+    document.getElementById('paperSize').addEventListener('change', function(e) {
+        const ori = document.getElementById('orientation');
+        if (e.target.value === 'a4') {
+            ori.disabled = false;
+        } else {
+            ori.value = 'p';
+            ori.disabled = true;
+        }
+    });
+
+    const md = window.markdownit({
+        html: true,
+        breaks: true,
+        linkify: true,
+        typographer: true,
+        highlight: function (str, lang) {
+            if (lang && hljs.getLanguage(lang)) {
+                try {
+                    return hljs.highlight(str, { language: lang }).value;
+                } catch (__) {}
+            }
+            return ''; 
+        }
+    });
+
+    // ================= 核心修复：公式隔离保护机制 =================
+    // 防止 Markdown 引擎错误解析公式里的下划线/星号，导致重影和结构破坏
+    let mathBlocks = [];
+    
+    function protectMath(text) {
+        mathBlocks = [];
+        let index = 0;
+        
+        // 1. 挖出块级公式 $$...$$
+        let processed = text.replace(/\$\$([\s\S]*?)\$\$/g, function(match) {
+            mathBlocks.push(match);
+            return `@@MATH_BLOCK_${index++}@@`;
+        });
+
+        // 2. 挖出行内公式 $...$
+        processed = processed.replace(/\$([^\n\$]*?)\$/g, function(match) {
+            mathBlocks.push(match);
+            return `@@MATH_BLOCK_${index++}@@`;
+        });
+        
+        return processed;
+    }
+
+    function restoreMath(html) {
+        let restored = html;
+        for (let i = 0; i < mathBlocks.length; i++) {
+            restored = restored.replace(`@@MATH_BLOCK_${i}@@`, mathBlocks[i]);
+        }
+        return restored;
+    }
+    // =============================================================
+
+    function preprocessMarkdown(text) {
+        let processed = text;
+        // 修复中文引号与加粗星号紧贴的问题
+        processed = processed.replace(/(“|”|"|')(\*\*)/g, '$1\u200B$2');
+        processed = processed.replace(/(\*\*)(“|”|"|')/g, '$1\u200B$2');
+        return processed;
+    }
+
+    let finalImageUrl = '';
+
+    async function generateImage() {
+        const inputStr = document.getElementById('mdInput').value;
+        if (!inputStr.trim()) {
+            alert("请输入内容");
+            return;
+        }
+
+        const btn = document.getElementById('generateBtn');
+        const loading = document.getElementById('loading');
+        const preview = document.getElementById('preview-result');
+        const dlBtn = document.getElementById('downloadBtn');
+        const canvasDiv = document.getElementById('print-canvas');
+
+        btn.disabled = true;
+        loading.style.display = 'block';
+        preview.innerHTML = '';
+        dlBtn.style.display = 'none';
+        
+        // 清理旧 DOM 和 MathJax 残留状态，防止重影
+        canvasDiv.innerHTML = '';
+        if (window.MathJax && window.MathJax.typesetClear) {
+            window.MathJax.typesetClear([canvasDiv]);
+        }
+
+        try {
+            const size = document.getElementById('paperSize').value;
+            const orientation = document.getElementById('orientation').value;
+            const quality = parseFloat(document.getElementById('quality').value);
+
+            canvasDiv.className = 'print-canvas';
+            if (size === 'a4') {
+                canvasDiv.classList.add(orientation === 'p' ? 'size-a4-p' : 'size-a4-l');
+            } else if (size === '3inch') {
+                canvasDiv.classList.add('size-3inch');
+            } else if (size === '2inch') {
+                canvasDiv.classList.add('size-2inch');
+            }
+
+            // 1. 保护公式不被 Markdown 破坏
+            const protectedText = protectMath(inputStr);
+            // 2. 预处理普通文本
+            const cleanText = preprocessMarkdown(protectedText);
+            // 3. 渲染 Markdown 为 HTML
+            const renderedHtml = md.render(cleanText);
+            // 4. 将公式原样还原回 HTML 中
+            canvasDiv.innerHTML = restoreMath(renderedHtml);
+
+            // 等待 DOM 挂载和图片加载
+            await new Promise(r => setTimeout(r, 200));
+
+            // 调用 MathJax 安全渲染
+            if (window.MathJax && window.MathJax.typesetPromise) {
+                await window.MathJax.typesetPromise([canvasDiv]);
+            }
+
+            // 转图
+            const canvas = await html2canvas(canvasDiv, {
+                scale: quality,
+                useCORS: true,
+                backgroundColor: "#ffffff",
+                logging: false,
+                windowWidth: canvasDiv.scrollWidth,
+                onclone: function(clonedDoc) {
+                    const clonedDiv = clonedDoc.getElementById('print-canvas');
+                    clonedDiv.style.overflow = 'hidden'; 
+                }
+            });
+
+            finalImageUrl = canvas.toDataURL("image/png");
+            const img = document.createElement('img');
+            img.src = finalImageUrl;
+            preview.appendChild(img);
+            dlBtn.style.display = 'block';
+
+        } catch (error) {
+            console.error("渲染错误:", error);
+            alert("生成过程中发生错误，请检查输入格式或控制台日志。");
+        } finally {
+            btn.disabled = false;
+            loading.style.display = 'none';
+        }
+    }
+
+    function downloadImage() {
+        if (!finalImageUrl) return;
+        const a = document.createElement('a');
+        a.href = finalImageUrl;
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        a.download = `AI_Chat_Export_${dateStr}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+</script>
+
+</body>
+</html>
