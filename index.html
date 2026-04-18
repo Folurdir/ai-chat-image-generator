@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 对话长图生成器 α1.0321(6418.1857)</title>
+    <title>AI 对话长图生成器 α1.05(6418.1934)</title>
 
     <!-- 引入外部依赖库 CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
@@ -37,8 +37,7 @@
         }
 
         body {
-            /* 1. 完善字体栈，显式加入 PingFang SC 和 Microsoft YaHei，确保跨平台字体一致性预期 */
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: var(--bg-color);
             margin: 0;
             padding: 15px;
@@ -122,12 +121,6 @@
             color: #000000;
             line-height: 1.6;
             box-sizing: border-box;
-            
-            /* ======== 新增以下 3 行核心修复代码 ======== */
-            text-rendering: geometricPrecision; /* 强制 Canvas 采用高精度几何渲染 */
-            font-kerning: none;                 /* 禁用字距微调，防止标点符号挤压 */
-            letter-spacing: 0.5px;              /* 增加极其微小的字间距，强迫 html2canvas 独立测算每个字符的物理边界 */
-            /* ========================================= */
         }
 
         .size-a4-p { width: 794px; padding: 40px; font-size: 16px; }
@@ -143,62 +136,6 @@
         .print-canvas table { border-collapse: collapse; width: 100%; word-break: break-word; margin-bottom: 1em; }
         .print-canvas th, .print-canvas td { border: 1px solid #ccc; padding: 8px; }
         
-        /* ======== 修复列表小圆点在 html2canvas 中渲染错乱的问题 ======== */
-        
-        /* 1. 禁用原生的列表标记，避免 html2canvas 计算崩溃 */
-        .print-canvas ul {
-            list-style: none !important;
-            padding-left: 1.8em;
-        }
-        
-        /* 2. 为所有列表项建立相对定位基准 */
-        .print-canvas li {
-            position: relative;
-            margin-bottom: 0.5em;
-        }
-
-        /* 统一提取所有级别标号的公共样式 */
-        .print-canvas ul li::before {
-            position: absolute;
-            left: -1.5em;       /* 固定在左侧缩进区 */
-            width: 1.2em;       /* 给予固定宽度 */
-            text-align: center; /* 标号自身居中对齐 */
-            font-family: Arial, sans-serif; /* 强制使用几何标准度高的英文字体 */
-            color: inherit;     /* 继承文字颜色 */
-            letter-spacing: normal; 
-            top: 0;             /* 起点与文本首行平齐 */
-        }
-
-        /* 3. 一级列表：实心圆点 */
-        .print-canvas ul > li::before {
-            content: "•";       /* 标准项目符号 */
-            font-size: 1.2em;
-            /* 严格计算高度：全局行高1.6 ÷ 本身字号1.2 ≈ 1.333 */
-            line-height: 1.333; 
-        }
-
-        /* 4. 二级嵌套列表：空心圆点 */
-        .print-canvas ul ul > li::before {
-            content: "○";       /* 换用标准大号白圆圈 (U+25CB)，基线绝对居中 */
-            font-size: 0.85em;  /* 视觉上缩小面积 */
-            /* 严格计算高度：全局行高1.6 ÷ 本身字号0.85 ≈ 1.882 */
-            line-height: 1.882; 
-        }
-
-        /* 5. 三级嵌套列表：实心方块 */
-        .print-canvas ul ul ul > li::before {
-            content: "■";       /* 换用标准大号黑方块 (U+25A0)，基线绝对居中 */
-            font-size: 0.7em;   /* 视觉上缩小面积 */
-            /* 严格计算高度：全局行高1.6 ÷ 本身字号0.7 ≈ 2.285 */
-            line-height: 2.285; 
-        }
-        
-        /* 确保有序列表(1. 2. 3.)不受字距干扰 */
-        .print-canvas ol li::marker {
-            letter-spacing: normal;
-        }
-        /* ======================================================= */
-
         /* ============== 公式排版样式保护 ============== */
         .print-canvas mjx-container { 
             overflow: visible !important; 
@@ -260,7 +197,7 @@
     <div class="panel editor-panel">
         <h2>
             输入 AI 对话 (Markdown + LaTeX)
-            <span class="version">α1.0321(6418.1857)</span>
+            <span class="version">α1.05(6418.1934)</span>
         </h2>
         <textarea id="mdInput" placeholder="在此粘贴...">
 这是一个抗重影与抗截断测试：
@@ -269,14 +206,7 @@
 $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
 
 行内公式 $x_{1,2} = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$ 测试下沿是否被切。
-
-列表测试：
-- 第一项
-- 第二项
-  - 嵌套项
-  - 嵌套项二
-    - 第三层嵌套
-</textarea>
+        </textarea>
         
         <div class="controls">
             <select id="paperSize">
@@ -299,7 +229,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     </div>
 
     <div class="panel preview-panel">
-        <h2>生成预览 <span class="version">α1.0321(6418.1857)</span></h2>
+        <h2>生成预览 <span class="version">α1.05(6418.1934)</span></h2>
         <div id="loading" class="loading">⚙️ 正在计算高精度排版并渲染...</div>
         <div id="preview-result"></div>
         <p id="mobile-hint" style="display:none; text-align:center; color:#666; font-size:14px; margin-bottom:10px;">
@@ -342,7 +272,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     function protectMath(text) {
         mathBlocks = [];
         let index = 0;
-        let processed = text.replace(/\现\$([\s\S]*?)\$\$/g, function(match) {
+        let processed = text.replace(/\$\$([\s\S]*?)\$\$/g, function(match) {
             mathBlocks.push(match); return `@@MATH_BLOCK_${index++}@@`;
         });
         processed = processed.replace(/\$([^\n\$]*?)\$/g, function(match) {
@@ -360,15 +290,28 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     }
 
     function preprocessMarkdown(text) {
+        // 原有的保护加粗引号逻辑
         let processed = text.replace(/(“|”|"|')(\*\*)/g, '$1\u200B$2');
         processed = processed.replace(/(\*\*)(“|”|"|')/g, '$1\u200B$2');
+
+        // --- 纯 JS 修复：解决 Windows Edge 端 html2canvas 中文标点叠合 Bug ---
+        // 使用 \u200C (零宽不连字 Zero-Width Non-Joiner) 打断连续全角标点的自动挤压
         
-        // ======== 新增修复代码 ========
-        // 在左书名号、左括号前面插入零宽非连接符 (\u200C)
-        // 彻底阻断 Windows 下 html2canvas 测算宽度时的向前重叠溢出
-        processed = processed.replace(/(.)(《|（|\()/g, '$1\u200C$2');
-        // ============================
+        // 1. 保护书名号《 左侧的标点（如：（《  。《  ，《  ：“《 等）
+        processed = processed.replace(/([（。《，、；：“”])/g, function(match) {
+            return match + '\u200C';
+        });
         
+        // （上面为了保险也可写得更明确：）
+        processed = processed.replace(/([（。《，、；：“”])(《)/g, '$1\u200C$2');
+        
+        // 2. 保护书名号 》右侧的标点（如：》）  》。  》， 等）
+        processed = processed.replace(/(》)([）。，、；：”）])/g, '$1\u200C$2');
+
+        // 3. 预防全角括号与引号组合的潜在重叠（如：（“  ”） ）
+        processed = processed.replace(/([（])([“‘])/g, '$1\u200C$2');
+        processed = processed.replace(/([”’])([）。，、；：])/g, '$1\u200C$2');
+
         return processed;
     }
 
@@ -531,7 +474,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         const a = document.createElement('a');
         a.href = finalImageUrl;
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        a.download = `AI_Chat_Export_${dateStr}_v1.0321.png`;
+        a.download = `AI_Chat_Export_${dateStr}_v1.05.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
