@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 对话长图生成器 α1.082(6418.2020)</title>
+    <title>AI 对话长图生成器 α1.09(6418.2031)</title>
 
     <!-- 引入外部依赖库 CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
@@ -249,7 +249,7 @@
     <div class="panel editor-panel">
         <h2>
             输入 AI 对话 (Markdown + LaTeX)
-            <span class="version">α1.082(6418.2020)</span>
+            <span class="version">α1.09(6418.2031)</span>
         </h2>
         <textarea id="mdInput" placeholder="在此粘贴...">
 这是一个抗重影与抗截断测试：
@@ -258,6 +258,9 @@
 $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
 
 行内公式 $x_{1,2} = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$ 测试下沿是否被切。
+
+标点符号与括号的排版修正测试：
+【测试】这是“测试”。“【测试】”
         </textarea>
         
         <div class="controls">
@@ -281,7 +284,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     </div>
 
     <div class="panel preview-panel">
-        <h2>生成预览 <span class="version">α1.082(6418.2020)</span></h2>
+        <h2>生成预览 <span class="version">α1.09(6418.2031)</span></h2>
         <div id="loading" class="loading">⚙️ 正在计算高精度排版并渲染...</div>
         <div id="preview-result"></div>
         <p id="mobile-hint" style="display:none; text-align:center; color:#666; font-size:14px; margin-bottom:10px;">
@@ -359,6 +362,14 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         // 3. 预防全角括号与引号组合的潜在重叠（如：（“  ”） ）
         processed = processed.replace(/([（])([“‘])/g, '$1\u200C$2');
         processed = processed.replace(/([”’])([）。，、；：])/g, '$1\u200C$2');
+
+        // ==========================================
+        // 新增补丁：修复【】与引号、句号等全角标点连用时的严重重叠
+        // ==========================================
+        // 处理 “【  或 （【  的情况
+        processed = processed.replace(/([“‘（])(【)/g, '$1\u200C$2');
+        // 处理 】”  或 】。 的情况
+        processed = processed.replace(/(】)([”’）。，、；：])/g, '$1\u200C$2');
 
         return processed;
     }
@@ -532,7 +543,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         const a = document.createElement('a');
         a.href = finalImageUrl;
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        a.download = `AI_Chat_Export_${dateStr}_v1.082.png`;
+        a.download = `AI_Chat_Export_${dateStr}_v1.09.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
