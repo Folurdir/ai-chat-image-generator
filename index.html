@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 对话长图生成器 (全平台终极版)</title>
+    <title>AI 对话长图生成器 (解决截断与重影)</title>
 
     <!-- 引入外部依赖库 CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
@@ -11,24 +11,30 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github-dark.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     
-    <!-- ================= 核心变更：MathJax 切换至 CHTML 模式 ================= -->
+    <!-- MathJax 3 配置与引入 -->
     <script>
         window.MathJax = {
+            // 【新增】：关闭右键菜单和无障碍 MathML 隐藏层，根治重影问题
+            options: {
+                enableMenu: false,
+                menuOptions: {
+                    settings: {
+                        assistiveMml: false
+                    }
+                }
+            },
             tex: {
                 inlineMath: [['$', '$'], ['\\(', '\\)']],
                 displayMath: [['$$', '$$'], ['\\[', '\\]']]
             },
-            chtml: {
-                // 使用 CHTML 渲染，完全兼容 html2canvas，彻底解决 iOS 丢包和重影问题
-                scale: 1,
-                displayAlign: 'center'
+            svg: { 
+                // 必须关闭 fontCache 以防 html2canvas 找不到全局缓存导致的空白
+                fontCache: 'none' 
             },
-            startup: { typeset: false } // 手动控制渲染
+            startup: { typeset: false } // 禁用自动渲染，改为手动控制
         };
     </script>
-    <!-- 引入 tex-chtml.js 而不是 tex-svg.js -->
-    <script id="MathJax-script" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-chtml.js"></script>
-    <!-- ====================================================================== -->
+    <script id="MathJax-script" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
 
     <style>
         :root {
@@ -137,17 +143,44 @@
         .print-canvas table { border-collapse: collapse; width: 100%; word-break: break-word; margin-bottom: 1em; }
         .print-canvas th, .print-canvas td { border: 1px solid #ccc; padding: 8px; }
         
-        /* CHTML 模式下的公式兜底保护 */
+        /* ============== 修复公式截断的核心 CSS ============== */
         .print-canvas mjx-container { 
+            /* 强制覆盖隐藏，允许公式上下延伸（如积分号、下标） */
             overflow: visible !important; 
             max-width: 100%;
             white-space: normal;
             word-wrap: break-word;
         }
+        .print-canvas mjx-container svg {
+            overflow: visible !important;
+            max-width: 100%;
+            height: auto;
+        }
+        /* 给内联公式下方留一点点呼吸空间，防止 html2canvas 算错高度裁剪 */
+        .print-canvas mjx-container[display="false"] {
+            padding-bottom: 2px; 
+            padding-top: 2px;
+        }
+        /* 块级公式额外保护 */
         .print-canvas mjx-container[display="true"] {
             margin: 1em 0 !important;
             padding: 5px 0;
         }
+        /* ==================================================== */
+
+        /* ============== 解决 iOS 重影的核心 CSS ============== */
+        /* 强制隐藏 MathJax 的无障碍阅读层和隐藏节点 */
+        mjx-assistive-mml,
+        .mjx-assistive-mml,
+        [data-mathml] {
+            display: none !important;
+            opacity: 0 !important;
+            width: 0 !important;
+            height: 0 !important;
+            position: absolute !important;
+            clip: rect(0, 0, 0, 0) !important;
+        }
+        /* ==================================================== */
 
         #preview-result img {
             max-width: 100%;
@@ -168,15 +201,12 @@
     <div class="panel editor-panel">
         <h2>输入 AI 对话 (Markdown + LaTeX)</h2>
         <textarea id="mdInput" placeholder="在此粘贴...">
-这是一个全平台极限抗错测试：
+这是一个抗重影与抗截断测试：
 
-复杂积分重影与空白测试：
+包含下划线的复杂公式（测试是否会被 Markdown 吃掉）：
 $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
 
-复杂极限边界截断测试：
-$$ \lim_{x \to 0} \frac{\sin x}{x} = 1 $$
-
-行内长公式 $x_{1,2} = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$ 测试。
+行内公式 $x_{1,2} = \frac{-b \pm \sqrt{b^2 - 4ac}}{2a}$ 测试下沿是否被切。
         </textarea>
         
         <div class="controls">
@@ -201,7 +231,7 @@ $$ \lim_{x \to 0} \frac{\sin x}{x} = 1 $$
 
     <div class="panel preview-panel">
         <h2>生成预览</h2>
-        <div id="loading" class="loading">正在排版与渲染，请稍候...</div>
+        <div id="loading" class="loading">正在渲染与生成，请稍候...</div>
         <div id="preview-result"></div>
         <p id="mobile-hint" style="display:none; text-align:center; color:#666; font-size:14px; margin-bottom:10px;">
             💡 手机端请直接<b>长按上方图片</b>保存到相册
@@ -240,19 +270,26 @@ $$ \lim_{x \to 0} \frac{\sin x}{x} = 1 $$
         }
     });
 
-    // 公式隔离保护机制
+    // ================= 核心修复：公式隔离保护机制 =================
+    // 防止 Markdown 引擎错误解析公式里的下划线/星号，导致重影和结构破坏
     let mathBlocks = [];
+    
     function protectMath(text) {
         mathBlocks = [];
         let index = 0;
+        
+        // 1. 挖出块级公式 $$...$$
         let processed = text.replace(/\$\$([\s\S]*?)\$\$/g, function(match) {
             mathBlocks.push(match);
             return `@@MATH_BLOCK_${index++}@@`;
         });
+
+        // 2. 挖出行内公式 $...$
         processed = processed.replace(/\$([^\n\$]*?)\$/g, function(match) {
             mathBlocks.push(match);
             return `@@MATH_BLOCK_${index++}@@`;
         });
+        
         return processed;
     }
 
@@ -263,9 +300,11 @@ $$ \lim_{x \to 0} \frac{\sin x}{x} = 1 $$
         }
         return restored;
     }
+    // =============================================================
 
     function preprocessMarkdown(text) {
         let processed = text;
+        // 修复中文引号与加粗星号紧贴的问题
         processed = processed.replace(/(“|”|"|')(\*\*)/g, '$1\u200B$2');
         processed = processed.replace(/(\*\*)(“|”|"|')/g, '$1\u200B$2');
         return processed;
@@ -284,16 +323,18 @@ $$ \lim_{x \to 0} \frac{\sin x}{x} = 1 $$
         const loading = document.getElementById('loading');
         const preview = document.getElementById('preview-result');
         const dlBtn = document.getElementById('downloadBtn');
-        const mobileHint = document.getElementById('mobile-hint');
         const canvasDiv = document.getElementById('print-canvas');
 
         btn.disabled = true;
         loading.style.display = 'block';
         preview.innerHTML = '';
         dlBtn.style.display = 'none';
+        
+        // 隐藏手机端长按提示（如果有的话）
+        const mobileHint = document.getElementById('mobile-hint');
         if(mobileHint) mobileHint.style.display = 'none';
 
-        // 清理旧 DOM 状态
+        // 清理旧 DOM 和 MathJax 残留状态，防止重影
         canvasDiv.innerHTML = '';
         if (window.MathJax && window.MathJax.typesetClear) {
             window.MathJax.typesetClear([canvasDiv]);
@@ -313,23 +354,72 @@ $$ \lim_{x \to 0} \frac{\sin x}{x} = 1 $$
                 canvasDiv.classList.add('size-2inch');
             }
 
+            // 1. 保护公式不被 Markdown 破坏
             const protectedText = protectMath(inputStr);
+            // 2. 预处理普通文本
             const cleanText = preprocessMarkdown(protectedText);
+            // 3. 渲染 Markdown 为 HTML
             const renderedHtml = md.render(cleanText);
+            // 4. 将公式原样还原回 HTML 中
             canvasDiv.innerHTML = restoreMath(renderedHtml);
 
-            // 唤醒 MathJax 渲染 CHTML
+            // 等待 DOM 挂载和普通图片加载
+            await new Promise(r => setTimeout(r, 200));
+
+            // 调用 MathJax 安全渲染
             if (window.MathJax && window.MathJax.typesetPromise) {
                 await window.MathJax.typesetPromise([canvasDiv]);
             }
 
-            // 【关键】：由于 CHTML 依赖外部字体文件，必须等待所有网络字体加载完毕
-            // 否则截出来的图会显示成空白方块
-            if (document.fonts && document.fonts.ready) {
-                await document.fonts.ready;
+            // ================= 核心修复：将 SVG 强制转为普通 IMG =================
+            // 解决 iOS Safari WebKit 渲染复杂 SVG 路径丢失符号的致命 Bug
+            const svgs = canvasDiv.querySelectorAll('svg');
+            for (let i = 0; i < svgs.length; i++) {
+                const svg = svgs[i];
+                
+                // 确保具有标准命名空间 (Safari 严格要求)
+                if (!svg.getAttribute('xmlns')) {
+                    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                }
+                
+                // MathJax SVG 默认用 currentColor，转图片后会丢失 CSS 上下文变成透明/不可见
+                // 必须强制指定为黑色（对应打印文本的颜色）
+                svg.setAttribute('fill', '#000000');
+                svg.style.color = '#000000';
+
+                // 提取高度和垂直对齐，保证公式（如分式、下标）与文字在同一水平线上不乱跳
+                const width = svg.getAttribute('width');
+                const height = svg.getAttribute('height');
+                const verticalAlign = svg.style.verticalAlign || '';
+
+                // 将 SVG 序列化为字符串并转 Base64
+                const svgData = new XMLSerializer().serializeToString(svg);
+                const base64 = btoa(unescape(encodeURIComponent(svgData)));
+
+                // 创建普通图片节点替代 SVG
+                const img = document.createElement('img');
+                img.src = 'data:image/svg+xml;base64,' + base64;
+                img.style.width = width;
+                img.style.height = height;
+                if (verticalAlign) img.style.verticalAlign = verticalAlign;
+                
+                // 替换原来的 SVG
+                svg.replaceWith(img);
             }
-            // 额外给予 300ms 缓冲，确保 DOM 与 CSS 样式彻底稳定
-            await new Promise(r => setTimeout(r, 300));
+
+            // 给予浏览器 150ms 时间来解码刚才生成的 Base64 图片
+            await new Promise(r => setTimeout(r, 150));
+            // =====================================================================
+
+            // 【新增】：在截图前，暴力遍历并移除所有可能导致重影的隐藏节点
+            const hiddenNodes = canvasDiv.querySelectorAll('mjx-assistive-mml, .mjx-assistive-mml');
+            hiddenNodes.forEach(node => node.remove());
+            
+            // 【新增】：修复部分 iOS 上字体抗锯齿导致的字体变粗重影
+            canvasDiv.style.webkitFontSmoothing = "antialiased";
+            
+            // 再稍微等一点点时间让 DOM 树更新完毕
+            await new Promise(r => setTimeout(r, 50));
 
             // 转图
             const canvas = await html2canvas(canvasDiv, {
@@ -364,9 +454,10 @@ $$ \lim_{x \to 0} \frac{\sin x}{x} = 1 $$
     async function downloadImage() {
         if (!finalImageUrl) return;
 
-        // 手机端分享 API
+        // 【新增】：尝试调用手机原生分享 API (iOS Safari 完美支持)
         if (navigator.share) {
             try {
+                // 将 base64 转为 File 对象以适配分享
                 const res = await fetch(finalImageUrl);
                 const blob = await res.blob();
                 const file = new File([blob], 'AI_Chat_Export.png', { type: 'image/png' });
@@ -375,13 +466,13 @@ $$ \lim_{x \to 0} \frac{\sin x}{x} = 1 $$
                     title: 'AI 对话长图',
                     files: [file]
                 });
-                return; 
+                return; // 如果唤起原生分享面板成功，就不执行下面的桌面端下载逻辑了
             } catch (err) {
-                console.log("用户取消分享:", err);
+                console.log("用户取消分享或分享失败:", err);
             }
         }
 
-        // 桌面端下载
+        // 桌面端传统的下载逻辑
         const a = document.createElement('a');
         a.href = finalImageUrl;
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
