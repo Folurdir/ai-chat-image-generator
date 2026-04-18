@@ -306,8 +306,11 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         loading.style.display = 'block';
         preview.innerHTML = '';
         dlBtn.style.display = 'none';
-        document.getElementById('mobile-hint').style.display = 'none';
         
+        // 隐藏手机端长按提示（如果有的话）
+        const mobileHint = document.getElementById('mobile-hint');
+        if(mobileHint) mobileHint.style.display = 'none';
+
         // 清理旧 DOM 和 MathJax 残留状态，防止重影
         canvasDiv.innerHTML = '';
         if (window.MathJax && window.MathJax.typesetClear) {
@@ -337,13 +340,53 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
             // 4. 将公式原样还原回 HTML 中
             canvasDiv.innerHTML = restoreMath(renderedHtml);
 
-            // 等待 DOM 挂载和图片加载
+            // 等待 DOM 挂载和普通图片加载
             await new Promise(r => setTimeout(r, 200));
 
             // 调用 MathJax 安全渲染
             if (window.MathJax && window.MathJax.typesetPromise) {
                 await window.MathJax.typesetPromise([canvasDiv]);
             }
+
+            // ================= 核心修复：将 SVG 强制转为普通 IMG =================
+            // 解决 iOS Safari WebKit 渲染复杂 SVG 路径丢失符号的致命 Bug
+            const svgs = canvasDiv.querySelectorAll('svg');
+            for (let i = 0; i < svgs.length; i++) {
+                const svg = svgs[i];
+                
+                // 确保具有标准命名空间 (Safari 严格要求)
+                if (!svg.getAttribute('xmlns')) {
+                    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+                }
+                
+                // MathJax SVG 默认用 currentColor，转图片后会丢失 CSS 上下文变成透明/不可见
+                // 必须强制指定为黑色（对应打印文本的颜色）
+                svg.setAttribute('fill', '#000000');
+                svg.style.color = '#000000';
+
+                // 提取高度和垂直对齐，保证公式（如分式、下标）与文字在同一水平线上不乱跳
+                const width = svg.getAttribute('width');
+                const height = svg.getAttribute('height');
+                const verticalAlign = svg.style.verticalAlign || '';
+
+                // 将 SVG 序列化为字符串并转 Base64
+                const svgData = new XMLSerializer().serializeToString(svg);
+                const base64 = btoa(unescape(encodeURIComponent(svgData)));
+
+                // 创建普通图片节点替代 SVG
+                const img = document.createElement('img');
+                img.src = 'data:image/svg+xml;base64,' + base64;
+                img.style.width = width;
+                img.style.height = height;
+                if (verticalAlign) img.style.verticalAlign = verticalAlign;
+                
+                // 替换原来的 SVG
+                svg.replaceWith(img);
+            }
+
+            // 给予浏览器 150ms 时间来解码刚才生成的 Base64 图片
+            await new Promise(r => setTimeout(r, 150));
+            // =====================================================================
 
             // 转图
             const canvas = await html2canvas(canvasDiv, {
@@ -359,13 +402,12 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
             });
 
             finalImageUrl = canvas.toDataURL("image/png");
-            const img = document.createElement('img');
-            img.src = finalImageUrl;
-            preview.appendChild(img);
+            const imgEl = document.createElement('img');
+            imgEl.src = finalImageUrl;
+            preview.appendChild(imgEl);
             
-            // 显示下载按钮和手机端长按提示
             dlBtn.style.display = 'block';
-            document.getElementById('mobile-hint').style.display = 'block';
+            if(mobileHint) mobileHint.style.display = 'block';
 
         } catch (error) {
             console.error("渲染错误:", error);
