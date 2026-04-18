@@ -338,7 +338,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         const loading = document.getElementById('loading');
         const preview = document.getElementById('preview-result');
         const dlBtn = document.getElementById('downloadBtn');
-        const canvasDiv = document.getElementById('print-canvas');
+        let canvasDiv = document.getElementById('print-canvas');
 
         btn.disabled = true;
         loading.style.display = 'block';
@@ -349,11 +349,24 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         const mobileHint = document.getElementById('mobile-hint');
         if(mobileHint) mobileHint.style.display = 'none';
 
-        // 清理旧 DOM 和 MathJax 残留状态，防止重影
-        canvasDiv.innerHTML = '';
-        if (window.MathJax && window.MathJax.typesetClear) {
-            window.MathJax.typesetClear([canvasDiv]);
+        // ================= 彻底销毁与重建机制 =================
+        // 物理销毁旧节点，彻底阻断 iOS WebKit 的离屏样式缓存污染
+        let wrapper = document.getElementById('render-wrapper');
+        if (canvasDiv) {
+            wrapper.removeChild(canvasDiv);
         }
+        
+        // 创建一个全新的干净节点
+        canvasDiv = document.createElement('div');
+        canvasDiv.id = 'print-canvas';
+        wrapper.appendChild(canvasDiv);
+
+        // 彻底重置 MathJax 的底层引擎状态（双重保险）
+        if (window.MathJax) {
+            if (window.MathJax.texReset) window.MathJax.texReset();
+            if (window.MathJax.typesetClear) window.MathJax.typesetClear();
+        }
+        // ======================================================
 
         try {
             const size = document.getElementById('paperSize').value;
@@ -375,8 +388,13 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
             const cleanText = preprocessMarkdown(protectedText);
             // 3. 渲染 Markdown 为 HTML
             const renderedHtml = md.render(cleanText);
+            
             // 4. 将公式原样还原回 HTML 中
             canvasDiv.innerHTML = restoreMath(renderedHtml);
+
+            // 【新增】：强制 iOS Safari 立即计算这个全新 DOM 节点的样式和尺寸
+            // 否则 MathJax 接下来去测量字号时，会拿到 0 导致公式变成蚂蚁字
+            void canvasDiv.offsetHeight; 
 
             // 等待 DOM 挂载和普通图片加载
             await new Promise(r => setTimeout(r, 200));
