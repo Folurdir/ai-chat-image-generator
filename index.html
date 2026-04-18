@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 对话长图生成器 (解决截断与重影)</title>
+    <title>AI 对话长图生成器 α1.0(6418.1409)</title>
 
     <!-- 引入外部依赖库 CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script>
@@ -14,24 +14,16 @@
     <!-- MathJax 3 配置与引入 -->
     <script>
         window.MathJax = {
-            // 【新增】：关闭右键菜单和无障碍 MathML 隐藏层，根治重影问题
             options: {
                 enableMenu: false,
-                menuOptions: {
-                    settings: {
-                        assistiveMml: false
-                    }
-                }
+                menuOptions: { settings: { assistiveMml: false } }
             },
             tex: {
                 inlineMath: [['$', '$'], ['\\(', '\\)']],
                 displayMath: [['$$', '$$'], ['\\[', '\\]']]
             },
-            svg: { 
-                // 必须关闭 fontCache 以防 html2canvas 找不到全局缓存导致的空白
-                fontCache: 'none' 
-            },
-            startup: { typeset: false } // 禁用自动渲染，改为手动控制
+            svg: { fontCache: 'none' },
+            startup: { typeset: false }
         };
     </script>
     <script id="MathJax-script" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/3.2.2/es5/tex-svg.js"></script>
@@ -72,7 +64,8 @@
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
 
-        h2 { margin-top: 0; font-size: 1.2rem; color: #111; }
+        h2 { margin-top: 0; font-size: 1.2rem; color: #111; display: flex; justify-content: space-between; align-items: center;}
+        .version { font-size: 0.8rem; color: #6b7280; font-weight: normal; }
 
         textarea {
             width: 100%;
@@ -143,9 +136,8 @@
         .print-canvas table { border-collapse: collapse; width: 100%; word-break: break-word; margin-bottom: 1em; }
         .print-canvas th, .print-canvas td { border: 1px solid #ccc; padding: 8px; }
         
-        /* ============== 修复公式截断的核心 CSS ============== */
+        /* ============== 公式排版样式保护 ============== */
         .print-canvas mjx-container { 
-            /* 强制覆盖隐藏，允许公式上下延伸（如积分号、下标） */
             overflow: visible !important; 
             max-width: 100%;
             white-space: normal;
@@ -156,18 +148,16 @@
             max-width: 100%;
             height: auto;
         }
-        /* 块级公式额外保护 */
+        .print-canvas mjx-container[display="false"] {
+            padding-bottom: 2px; 
+            padding-top: 2px;
+        }
         .print-canvas mjx-container[display="true"] {
             margin: 1em 0 !important;
             padding: 5px 0;
         }
-        /* ==================================================== */
-
-        /* ============== 解决 iOS 重影的核心 CSS ============== */
-        /* 强制隐藏 MathJax 的无障碍阅读层和隐藏节点 */
-        mjx-assistive-mml,
-        .mjx-assistive-mml,
-        [data-mathml] {
+        /* 强制隐藏辅助层 */
+        mjx-assistive-mml, .mjx-assistive-mml, [data-mathml] {
             display: none !important;
             opacity: 0 !important;
             width: 0 !important;
@@ -175,18 +165,19 @@
             position: absolute !important;
             clip: rect(0, 0, 0, 0) !important;
         }
-        /* ==================================================== */
 
-        /* ============== 确保公式图片与汉字完美对齐 ============== */
+        /* 
+           【修正 Issue 3/4】: 移除原来的 relative 和 margin 乱改，
+           直接继承 MathJax 原生给出的严格 vertical-align
+        */
         .print-canvas mjx-container img {
             display: inline-block;
-            /* 保证在 iOS 下的高清缩放不会变得模糊 */
             image-rendering: -webkit-optimize-contrast;
-            /* 抵消图片默认的下边距干扰 */
-            margin-bottom: 0 !important;
+            margin: 0 !important;
             padding: 0 !important;
+            /* 防止图片被外部 CSS 意外压缩 */
+            max-width: none !important; 
         }
-        /* ==================================================== */
 
         #preview-result img {
             max-width: 100%;
@@ -197,14 +188,17 @@
             margin: 0 auto 15px auto;
         }
 
-        .loading { text-align: center; color: #666; font-weight: bold; display: none; }
+        .loading { text-align: center; color: #666; font-weight: bold; display: none; margin-bottom: 15px;}
     </style>
 </head>
 <body>
 
 <div class="container">
     <div class="panel editor-panel">
-        <h2>输入 AI 对话 (Markdown + LaTeX)</h2>
+        <h2>
+            输入 AI 对话 (Markdown + LaTeX)
+            <span class="version">α1.0(6418.1409)</span>
+        </h2>
         <textarea id="mdInput" placeholder="在此粘贴...">
 这是一个抗重影与抗截断测试：
 
@@ -235,14 +229,13 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     </div>
 
     <div class="panel preview-panel">
-        <h2>生成预览</h2>
-        <div id="loading" class="loading">正在渲染与生成，请稍候...</div>
+        <h2>生成预览 <span class="version">α1.0(6418.1409)</span></h2>
+        <div id="loading" class="loading">⚙️ 正在计算高精度排版并渲染...</div>
         <div id="preview-result"></div>
         <p id="mobile-hint" style="display:none; text-align:center; color:#666; font-size:14px; margin-bottom:10px;">
             💡 上方图片可供<b>直接保存</b>
         </p>
 
-        <!-- 修改 1：全新的双按钮组 -->
         <div id="action-group" style="display: none; gap: 10px; margin: 0 auto; width: 100%;">
             <button id="btn-download" onclick="forceDownload()" style="background: #10b981;">📥 下载图片</button>
             <button id="btn-share" onclick="invokeShare()" style="background: #8b5cf6;">↗️ 分享 / 发送</button>
@@ -266,40 +259,25 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
     });
 
     const md = window.markdownit({
-        html: true,
-        breaks: true,
-        linkify: true,
-        typographer: true,
+        html: true, breaks: true, linkify: true, typographer: true,
         highlight: function (str, lang) {
             if (lang && hljs.getLanguage(lang)) {
-                try {
-                    return hljs.highlight(str, { language: lang }).value;
-                } catch (__) {}
+                try { return hljs.highlight(str, { language: lang }).value; } catch (__) {}
             }
             return ''; 
         }
     });
 
-    // ================= 核心修复：公式隔离保护机制 =================
-    // 防止 Markdown 引擎错误解析公式里的下划线/星号，导致重影和结构破坏
     let mathBlocks = [];
-    
     function protectMath(text) {
         mathBlocks = [];
         let index = 0;
-        
-        // 1. 挖出块级公式 $$...$$
         let processed = text.replace(/\$\$([\s\S]*?)\$\$/g, function(match) {
-            mathBlocks.push(match);
-            return `@@MATH_BLOCK_${index++}@@`;
+            mathBlocks.push(match); return `@@MATH_BLOCK_${index++}@@`;
         });
-
-        // 2. 挖出行内公式 $...$
         processed = processed.replace(/\$([^\n\$]*?)\$/g, function(match) {
-            mathBlocks.push(match);
-            return `@@MATH_BLOCK_${index++}@@`;
+            mathBlocks.push(match); return `@@MATH_BLOCK_${index++}@@`;
         });
-        
         return processed;
     }
 
@@ -310,24 +288,31 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         }
         return restored;
     }
-    // =============================================================
 
     function preprocessMarkdown(text) {
-        let processed = text;
-        // 修复中文引号与加粗星号紧贴的问题
-        processed = processed.replace(/(“|”|"|')(\*\*)/g, '$1\u200B$2');
-        processed = processed.replace(/(\*\*)(“|”|"|')/g, '$1\u200B$2');
-        return processed;
+        let processed = text.replace(/(“|”|"|')(\*\*)/g, '$1\u200B$2');
+        return processed.replace(/(\*\*)(“|”|"|')/g, '$1\u200B$2');
+    }
+
+    // 【核心修复】：动态测算当前设备、当前 DOM 环境下的 1ex 等于多少绝对像素
+    function measureExInPixels(container) {
+        const testSpan = document.createElement('span');
+        testSpan.style.display = 'inline-block';
+        testSpan.style.height = '1ex';
+        testSpan.style.width = '0';
+        testSpan.style.position = 'absolute';
+        testSpan.style.visibility = 'hidden';
+        container.appendChild(testSpan);
+        const px = testSpan.getBoundingClientRect().height;
+        container.removeChild(testSpan);
+        return px > 0 ? px : 8; // 兜底返回 8px
     }
 
     let finalImageUrl = '';
 
     async function generateImage() {
         const inputStr = document.getElementById('mdInput').value;
-        if (!inputStr.trim()) {
-            alert("请输入内容");
-            return;
-        }
+        if (!inputStr.trim()) { alert("请输入内容"); return; }
 
         const btn = document.getElementById('generateBtn');
         const loading = document.getElementById('loading');
@@ -338,32 +323,21 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         btn.disabled = true;
         loading.style.display = 'block';
         preview.innerHTML = '';
-        
-        // 生成前隐藏操作按钮
         actionGroup.style.display = 'none';
-        
-        // 隐藏手机端长按提示（如果有的话）
         const mobileHint = document.getElementById('mobile-hint');
         if(mobileHint) mobileHint.style.display = 'none';
 
-        // ================= 彻底销毁与重建机制 =================
-        // 物理销毁旧节点，彻底阻断 iOS WebKit 的离屏样式缓存污染
         let wrapper = document.getElementById('render-wrapper');
-        if (canvasDiv) {
-            wrapper.removeChild(canvasDiv);
-        }
+        if (canvasDiv) wrapper.removeChild(canvasDiv);
         
-        // 创建一个全新的干净节点
         canvasDiv = document.createElement('div');
         canvasDiv.id = 'print-canvas';
         wrapper.appendChild(canvasDiv);
 
-        // 彻底重置 MathJax 的底层引擎状态（双重保险）
         if (window.MathJax) {
             if (window.MathJax.texReset) window.MathJax.texReset();
             if (window.MathJax.typesetClear) window.MathJax.typesetClear();
         }
-        // ======================================================
 
         try {
             const size = document.getElementById('paperSize').value;
@@ -371,92 +345,79 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
             const quality = parseFloat(document.getElementById('quality').value);
 
             canvasDiv.className = 'print-canvas';
-            if (size === 'a4') {
-                canvasDiv.classList.add(orientation === 'p' ? 'size-a4-p' : 'size-a4-l');
-            } else if (size === '3inch') {
-                canvasDiv.classList.add('size-3inch');
-            } else if (size === '2inch') {
-                canvasDiv.classList.add('size-2inch');
-            }
+            if (size === 'a4') canvasDiv.classList.add(orientation === 'p' ? 'size-a4-p' : 'size-a4-l');
+            else if (size === '3inch') canvasDiv.classList.add('size-3inch');
+            else if (size === '2inch') canvasDiv.classList.add('size-2inch');
 
-            // 1. 保护公式不被 Markdown 破坏
             const protectedText = protectMath(inputStr);
-            // 2. 预处理普通文本
             const cleanText = preprocessMarkdown(protectedText);
-            // 3. 渲染 Markdown 为 HTML
             const renderedHtml = md.render(cleanText);
-            
-            // 4. 将公式原样还原回 HTML 中
             canvasDiv.innerHTML = restoreMath(renderedHtml);
 
-            // 【新增】：强制 iOS Safari 立即计算这个全新 DOM 节点的样式和尺寸
-            // 否则 MathJax 接下来去测量字号时，会拿到 0 导致公式变成蚂蚁字
             void canvasDiv.offsetHeight; 
-
-            // 等待 DOM 挂载和普通图片加载
             await new Promise(r => setTimeout(r, 200));
 
-            // 调用 MathJax 安全渲染
             if (window.MathJax && window.MathJax.typesetPromise) {
                 await window.MathJax.typesetPromise([canvasDiv]);
             }
 
-            // ================= 核心修复：将 SVG 强制转为普通 IMG (完美版) =================
+            // 【核心修复】：获取精准的 ex 到 px 的换算率
+            const exToPxRate = measureExInPixels(canvasDiv);
+            const toPx = (valStr) => {
+                if (!valStr) return '';
+                if (valStr.includes('ex')) {
+                    // 彻底解决 Issue 2: 精准还原尺寸，抛弃原来的乘以 0.5em
+                    return (parseFloat(valStr) * exToPxRate).toFixed(2) + 'px';
+                }
+                return valStr;
+            };
+
             const svgs = canvasDiv.querySelectorAll('svg');
 
             for (let i = 0; i < svgs.length; i++) {
                 const svg = svgs[i];
-                
-                if (!svg.getAttribute('xmlns')) {
-                    svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-                }
-                
-                // 【关键新增 1】：在移除 SVG 前，获取浏览器当前精确计算出的物理像素宽高
-                const rect = svg.getBoundingClientRect();
-                
-                // 【关键新增 2】：获取 MathJax 算好的极其精确的基线偏移像素值（解决问题 4）
-                const computedStyle = window.getComputedStyle(svg);
-                const exactVerticalAlign = computedStyle.verticalAlign;
-
+                if (!svg.getAttribute('xmlns')) svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
                 svg.setAttribute('fill', '#000000');
                 svg.style.color = '#000000';
 
+                // 获取 MathJax 原本计算的精准宽度和基线对齐
+                const origWidth = svg.getAttribute('width');
+                const origHeight = svg.getAttribute('height');
+                const origVA = svg.style.verticalAlign || '';
+
+                const pxWidth = toPx(origWidth);
+                const pxHeight = toPx(origHeight);
+                const pxVA = toPx(origVA);
+
+                // 【解决 Issue 3: 空白间隙】必须在生成 Base64 前，将 SVG 自身的宽高属性强制写死为绝对 px
+                // 这样生成的 IMG 图片在 iOS 下才具备真实的内部物理边界，不会产生外壳大但内容小的问题
+                svg.setAttribute('width', pxWidth);
+                svg.setAttribute('height', pxHeight);
+
                 const svgData = new XMLSerializer().serializeToString(svg);
-                // 使用 encodeURIComponent 替代废弃的 unescape 提高兼容性
                 const base64 = btoa(unescape(encodeURIComponent(svgData)));
 
                 const img = document.createElement('img');
                 img.src = 'data:image/svg+xml;base64,' + base64;
                 
-                // 【修复问题 2 & 3】：直接赋予绝对物理像素，彻底消除缩放错乱和巨大的空隙
-                img.style.width = `${rect.width}px`;
-                img.style.height = `${rect.height}px`;
+                // 将计算出的 px 直接赋值给 img，保证视觉 1:1 还原
+                img.style.width = pxWidth;
+                img.style.height = pxHeight;
                 
-                // 【修复问题 4】：原封不动地继承基线偏移，让公式完美贴合汉字底部
-                img.style.verticalAlign = exactVerticalAlign;
-                
-                // 锁定图片自身的属性，防止 html2canvas 或 iOS 内部拉伸
-                img.setAttribute('width', rect.width);
-                img.setAttribute('height', rect.height);
+                // 【解决 Issue 4: 基线乱跳】精准套用 MathJax 给的 offset 值
+                if (pxVA) img.style.verticalAlign = pxVA;
 
                 svg.replaceWith(img);
             }
-            // =====================================================================
 
-            // 给予浏览器 150ms 时间来解码刚才生成的 Base64 图片
             await new Promise(r => setTimeout(r, 150));
 
-            // 【新增】：在截图前，暴力遍历并移除所有可能导致重影的隐藏节点
             const hiddenNodes = canvasDiv.querySelectorAll('mjx-assistive-mml, .mjx-assistive-mml');
             hiddenNodes.forEach(node => node.remove());
             
-            // 【新增】：修复部分 iOS 上字体抗锯齿导致的字体变粗重影
             canvasDiv.style.webkitFontSmoothing = "antialiased";
-            
-            // 再稍微等一点点时间让 DOM 树更新完毕
             await new Promise(r => setTimeout(r, 50));
 
-            // 转图
             const canvas = await html2canvas(canvasDiv, {
                 scale: quality,
                 useCORS: true,
@@ -474,13 +435,8 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
             imgEl.src = finalImageUrl;
             preview.appendChild(imgEl);
             
-            // 修改 2：生成成功后，展示按钮组逻辑
             actionGroup.style.display = 'flex';
-            // 如果当前浏览器完全不支持分享 API，则隐藏分享按钮
-            if (!navigator.share) {
-                document.getElementById('btn-share').style.display = 'none';
-            }
-            
+            if (!navigator.share) document.getElementById('btn-share').style.display = 'none';
             if(mobileHint) mobileHint.style.display = 'block';
 
         } catch (error) {
@@ -492,19 +448,17 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
         }
     }
 
-    // 修改 3：独立的下载逻辑 (电脑手机点击都直接走下载)
     function forceDownload() {
         if (!finalImageUrl) return;
         const a = document.createElement('a');
         a.href = finalImageUrl;
         const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-        a.download = `AI_Chat_Export_${dateStr}.png`;
+        a.download = `AI_Chat_Export_${dateStr}_v1.0.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
     }
 
-    // 修改 3：独立的分享逻辑 (调用系统原生分享面板)
     async function invokeShare() {
         if (!finalImageUrl || !navigator.share) return;
         try {
@@ -517,8 +471,7 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
                 files: [file]
             });
         } catch (err) {
-            console.log("用户取消分享或系统限制:", err);
-            // 此处不要再执行下载逻辑，静默处理即可
+            console.log("分享取消或失败:", err);
         }
     }
 </script>
