@@ -480,3 +480,16 @@ $$ f(x) = \int_{-\infty}^{\infty} e^{-x^2} \cdot \hat{f}_{y_1} \,dx $$
             const res = await fetch(finalImageUrl);
             const blob = await res.blob();
             const file = new File([blob], 'AI_Chat_Export.png', { type: 'image/png' });
+
+            await navigator.share({
+                title: 'AI 对话长图',
+                files: [file]
+            });
+        } catch (err) {
+            console.log("分享取消或失败:", err);
+        }
+    }
+</script>
+
+</body>
+</html>
